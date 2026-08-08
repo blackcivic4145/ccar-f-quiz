@@ -61,6 +61,9 @@
   <div class="progress" id="timerLabel" style="font-weight:bold;"></div>
   <div class="qtext" id="qtext"></div>
   <div id="choices"></div>
+  <div>
+    <button type="button" id="hintBtn" class="hidden">💡 図解のヒントを見る</button>
+  </div>
   <div class="feedback hidden" id="feedback"></div>
   <div id="diagramBox" class="hidden"></div>
   <button class="primary" id="answerBtn">回答する</button>
@@ -723,7 +726,8 @@ const STRINGS = {
     missedHeader: "【誤答・未回答だった問題】",
     allCorrect: "全問正解です！",
     correctAnswerLabel: "正解: ",
-    retryBtn: "もう一度挑戦する"
+    retryBtn: "もう一度挑戦する",
+    hintBtn: "💡 図解のヒントを見る"
   },
   en: {
     pageTitle: "CCAR-F (Claude Certified Architect - Foundations) Practice Quiz",
@@ -748,7 +752,8 @@ const STRINGS = {
     missedHeader: "Missed / unanswered questions",
     allCorrect: "All correct!",
     correctAnswerLabel: "Correct answer: ",
-    retryBtn: "Try again"
+    retryBtn: "Try again",
+    hintBtn: "💡 Show diagram hint"
   }
 };
 
@@ -766,6 +771,7 @@ function applyStaticStrings() {
   document.getElementById('answerBtn').textContent = t().answerBtn;
   document.getElementById('nextBtn').textContent = t().nextBtn;
   document.getElementById('retryBtn').textContent = t().retryBtn;
+  document.getElementById('hintBtn').textContent = t().hintBtn;
   document.getElementById('langJaBtn').classList.toggle('active', LANG === 'ja');
   document.getElementById('langEnBtn').classList.toggle('active', LANG === 'en');
   document.documentElement.lang = LANG;
@@ -790,6 +796,7 @@ let domainStats = {};
 let missed = [];
 let answered = false;
 let selectedPos = -1;
+let hintShown = false;
 let examFinished = false;
 let remainingSeconds = TIME_LIMIT_SECONDS;
 let timerHandle = null;
@@ -801,6 +808,8 @@ const answerBtn = document.getElementById('answerBtn');
 const nextBtn = document.getElementById('nextBtn');
 const feedbackEl = document.getElementById('feedback');
 const timerLabelEl = document.getElementById('timerLabel');
+const hintBtn = document.getElementById('hintBtn');
+const diagramBoxEl = document.getElementById('diagramBox');
 
 function getQ(idx) {
   return (LANG === 'en' && QUESTIONS_EN[idx]) ? QUESTIONS_EN[idx] : QUESTIONS_JA[idx];
@@ -989,16 +998,40 @@ function renderFeedback() {
   if (!answered) {
     feedbackEl.className = 'feedback hidden';
     feedbackEl.innerHTML = '';
-    document.getElementById('diagramBox').classList.add('hidden');
     return;
   }
   const isCorrect = selectedPos === currentCorrectPos;
   const correctLetter = ['A', 'B', 'C', 'D'][currentCorrectPos];
   feedbackEl.className = isCorrect ? 'feedback correct' : 'feedback wrong';
   feedbackEl.innerHTML = buildFeedbackHtml(isCorrect, correctLetter);
-  const qJA = QUESTIONS_JA[session[currentIndex]];
-  renderDiagram(qJA.diagram);
 }
+
+// 回答済み、またはヒントボタンが押された場合にのみ図解を表示する。
+// それ以外は「ヒントを見る」ボタンだけを出しておく（図解があるドメインのみ）。
+function updateDiagramVisibility() {
+  const qJA = QUESTIONS_JA[session[currentIndex]];
+  const hasDiagram = !!(qJA.diagram && DIAGRAM_BUILDERS[qJA.diagram]);
+
+  if (answered || hintShown) {
+    hintBtn.classList.add('hidden');
+    if (hasDiagram) {
+      renderDiagram(qJA.diagram);
+    } else {
+      diagramBoxEl.classList.add('hidden');
+      diagramBoxEl.innerHTML = '';
+    }
+  } else {
+    diagramBoxEl.classList.add('hidden');
+    diagramBoxEl.innerHTML = '';
+    hintBtn.classList.toggle('hidden', !hasDiagram);
+  }
+}
+
+hintBtn.addEventListener('click', () => {
+  if (examFinished || answered) return;
+  hintShown = true;
+  updateDiagramVisibility();
+});
 
 function showQuestion(preserveState) {
   const idx = session[currentIndex];
@@ -1012,12 +1045,14 @@ function showQuestion(preserveState) {
   if (!preserveState) {
     answered = false;
     selectedPos = -1;
+    hintShown = false;
     currentOrder = shuffle([0, 1, 2, 3]);
     currentCorrectPos = currentOrder.indexOf(qJA.correct);
   }
 
   renderChoices();
   renderFeedback();
+  updateDiagramVisibility();
   answerBtn.disabled = answered;
   nextBtn.disabled = !answered;
 }
@@ -1047,6 +1082,7 @@ answerBtn.addEventListener('click', () => {
 
   renderChoices();
   renderFeedback();
+  updateDiagramVisibility();
 
   answerBtn.disabled = true;
   nextBtn.disabled = false;
