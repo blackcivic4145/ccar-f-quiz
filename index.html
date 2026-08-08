@@ -27,18 +27,29 @@
   .missed .item { padding: 8px 0; border-top: 1px solid #eee; }
   .hidden { display: none; }
   #resultSummary { font-size: 1.2em; font-weight: bold; }
+  .titlebar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .lang-switch { display: flex; gap: 6px; flex-shrink: 0; }
+  .lang-switch button { margin: 0; padding: 6px 12px; font-size: 0.85em; }
+  .lang-switch button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  #diagramBox { margin-top: 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow-x: auto; }
 </style>
 </head>
 <body>
 
-<h1>CCAR-F (Claude Certified Architect - Foundations) 模擬問題集</h1>
+<div class="titlebar">
+  <h1 id="pageTitle">CCAR-F (Claude Certified Architect - Foundations) 模擬問題集</h1>
+  <div class="lang-switch">
+    <button type="button" id="langJaBtn" class="active">日本語</button>
+    <button type="button" id="langEnBtn">English</button>
+  </div>
+</div>
 
 <div id="startCard" class="card">
-  <p>全 <span id="totalCount"></span> 問収録。出題数を選んで開始してください（各ドメインの出題比率を維持したままランダム抽出されます）。</p>
-  <p style="color:#666; font-size:0.9em;">出題範囲: Agentic Architecture 27% / Claude Code 設定・ワークフロー 20% / プロンプトエンジニアリング・構造化出力 20% / ツール設計・MCP統合 18% / コンテキスト管理・信頼性 15%</p>
-  <p style="color:#666; font-size:0.9em;">制限時間: 120分（超過すると自動採点され、ウィンドウが前面に表示されます）</p>
+  <p id="introText">全 <span id="totalCount"></span> 問収録。出題数を選んで開始してください（各ドメインの出題比率を維持したままランダム抽出されます）。</p>
+  <p id="scopeText" style="color:#666; font-size:0.9em;"></p>
+  <p id="timeLimitText" style="color:#666; font-size:0.9em;"></p>
   <div class="row">
-    <label for="countInput">出題数:</label>
+    <label for="countInput" id="countLabel">出題数:</label>
     <input type="number" id="countInput" min="1" value="60">
   </div>
   <button class="primary" id="startBtn">開始する</button>
@@ -48,10 +59,10 @@
   <div class="progress" id="progress"></div>
   <div class="domain" id="domainLabel"></div>
   <div class="progress" id="timerLabel" style="font-weight:bold;"></div>
-  <div id="diagramBox" style="margin:10px 0; border:1px solid #ddd; border-radius:6px; background:#fff; overflow-x:auto;"></div>
   <div class="qtext" id="qtext"></div>
   <div id="choices"></div>
   <div class="feedback hidden" id="feedback"></div>
+  <div id="diagramBox" class="hidden"></div>
   <button class="primary" id="answerBtn">回答する</button>
   <button id="nextBtn" disabled>次へ</button>
 </div>
@@ -64,7 +75,7 @@
 </div>
 
 <script>
-const QUESTIONS = [
+const QUESTIONS_JA = [
 {domain:"アジェンティック・アーキテクチャ",text:"マルチエージェント構成において、オーケストレーター（親）エージェントとサブエージェントを分離する主な利点は何か？",choices:["コンテキストウィンドウを汚染せずに専門タスクを並列実行できる","サブエージェントは常に親より高性能なモデルを使う","サブエージェントはツールを一切使えなくなる","API呼び出し回数を必ず削減できる"],correct:0,explanation:"サブエージェントは独立したコンテキストで動作するため、親エージェントの会話コンテキストを圧迫せずに専門化されたタスクを処理できる。",diagram:"orchestrator_worker"},
 {domain:"アジェンティック・アーキテクチャ",text:"エージェントが「計画→実行→検証」のループを繰り返すアーキテクチャは一般に何と呼ばれるか？",choices:["ReActパターン","シングルショット推論","静的パイプライン","バッチ処理"],correct:0,explanation:"ReAct（Reasoning + Acting）は推論と行動を交互に繰り返しながらタスクを進めるエージェントパターン。",diagram:"react_loop"},
 {domain:"アジェンティック・アーキテクチャ",text:"長時間稼働するエージェントタスクにおいて、サブタスクを並列化することの主なリスクは何か？",choices:["共有リソースやファイルへの競合（レースコンディション）が発生しうる","トークン消費が必ず減る","レイテンシが必ず増加する","ツール呼び出しが禁止される"],correct:0,explanation:"並列実行では複数のタスクが同じリソースに同時アクセスすることで競合が発生する可能性があり、設計上の考慮が必要になる。",diagram:"parallelization"},
@@ -216,6 +227,175 @@ const QUESTIONS = [
 {domain:"コンテキスト管理・信頼性",text:"複数の情報源から矛盾する情報が得られた場合に、エージェントがそのまま片方を採用せず矛盾を明示する設計の利点は？",choices:["ユーザーが誤った情報に基づいて判断してしまうリスクを減らせる","矛盾を無視して片方を採用する方が常に信頼性が高い","矛盾の明示はコンテキスト管理とは無関係な機能である","矛盾があった場合は常に処理を停止しなければならない"],correct:0,explanation:"矛盾する情報を明示することで、ユーザーが誤った情報のみに基づいて判断してしまうリスクを減らせる。",diagram:"context_compaction"},
 {domain:"コンテキスト管理・信頼性",text:"システムの信頼性を継続的に改善するために、実運用でのエラーログや失敗事例を定期的に分析することの利点は？",choices:["繰り返し発生する問題パターンを特定し、設計やプロンプトの改善につなげられる","エラーログの分析は運用コストを増やすだけで改善には寄与しない","失敗事例の分析は信頼性向上と無関係である","エラーログは分析せずに破棄するのがベストプラクティスである"],correct:0,explanation:"実運用でのエラーログや失敗事例を定期的に分析することで、繰り返し発生する問題パターンを特定し、設計やプロンプトの改善につなげられる。",diagram:"tool_call_flow"}
 ];
+
+// 英語版の問題データ。QUESTIONS_JAと同じ順序・同じ長さ・同じcorrect/diagramを保つこと
+// （インデックスで対応付けるため）。翻訳が未投入の間はQUESTIONS_JAにフォールバックする。
+const QUESTIONS_EN = [
+{domain:"Agentic Architecture",text:"In a multi-agent configuration, what is the main benefit of separating the orchestrator (parent) agent from subagents?",choices:["Specialized tasks can be executed in parallel without polluting the context window","Subagents always use a more capable model than the parent","Subagents can never use any tools","API call counts are always reduced"],correct:0,explanation:"Because subagents operate in an independent context, they can handle specialized tasks without consuming the parent agent's conversation context.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is the architecture generally called in which an agent repeats a \"plan -> act -> verify\" loop?",choices:["The ReAct pattern","Single-shot inference","A static pipeline","Batch processing"],correct:0,explanation:"ReAct (Reasoning + Acting) is an agent pattern that advances a task by alternating between reasoning and acting.",diagram:"react_loop"},
+{domain:"Agentic Architecture",text:"In a long-running agent task, what is the main risk of parallelizing subtasks?",choices:["Contention (race conditions) can occur over shared resources or files","Token consumption is always reduced","Latency always increases","Tool calls are prohibited"],correct:0,explanation:"In parallel execution, multiple tasks may access the same resource simultaneously, which can cause contention and requires careful design.",diagram:"parallelization"},
+{domain:"Agentic Architecture",text:"In designing an agent to judge whether it should use a tool, what is the most important factor?",choices:["Each tool's description clearly states its purpose and the conditions for use","All tool names are in English","The number of tools is maximized","Tool responses are always in XML format"],correct:0,explanation:"Since the model decides whether to use a tool based on its description, an ambiguous description can lead to incorrect tool selection.",diagram:"tool_call_flow"},
+{domain:"Agentic Architecture",text:"In the orchestrator-worker pattern, what is the orchestrator's main responsibility?",choices:["Decomposing the task into subtasks, assigning them to workers, and integrating the results","Managing all API keys","Rendering the UI","Updating the model's weights"],correct:0,explanation:"The orchestrator is the central component responsible for the coordinating role of task decomposition and result integration.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is the most appropriate purpose for incorporating an evaluator agent?",choices:["Checking the quality of generated output and prompting a re-run if necessary","Encrypting user input","Automatically reducing the token count to zero","Fine-tuning the model"],correct:0,explanation:"In the evaluator-optimizer pattern, the evaluator verifies the output and generation/evaluation is repeated until the criteria are met.",diagram:"evaluator_optimizer"},
+{domain:"Agentic Architecture",text:"When increasing an agent's autonomy, what mechanism is generally advisable to introduce to ensure safety?",choices:["A checkpoint that requires human approval before destructive operations","Automatically executing all tools unconditionally","Keeping no logs at all","Making the context window unlimited"],correct:0,explanation:"Inserting a human confirmation step before irreversible or destructive operations reduces the risk of an autonomous agent running out of control.",diagram:"human_in_the_loop"},
+{domain:"Agentic Architecture",text:"Which of the following correctly describes the difference between the \"orchestrator-worker\" workflow and the \"parallelization\" workflow?",choices:["Parallelization executes predefined, fixed subtasks simultaneously, whereas the orchestrator dynamically determines subtasks at runtime","Parallelization always completes with a single model call","The orchestrator pattern cannot use tools","There is no difference between the two"],correct:0,explanation:"The parallelization pattern executes multiple predetermined tasks concurrently, whereas the orchestrator pattern has the flexibility to dynamically determine subtasks at runtime.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is the purpose of the \"routing\" pattern in agent workflows?",choices:["Classifying the input content and directing it to the optimal specialized prompt or model","Processing all inputs with the same prompt","Ignoring token usage","Always escalating to a human"],correct:0,explanation:"Routing classifies inputs and directs each to a processing path optimized for it, improving accuracy and efficiency.",diagram:"routing"},
+{domain:"Agentic Architecture",text:"In what situation is the \"prompt chaining\" workflow well suited?",choices:["When a task can be broken into clear sequential steps, and each step's output can be validated before moving to the next","Only for a single, very simple classification task","Only when parallel execution is impossible","Only when the model generates images"],correct:0,explanation:"Prompt chaining is an effective workflow when a task can be broken into ordered substeps and each stage can be validated.",diagram:"prompt_chaining"},
+{domain:"Agentic Architecture",text:"Comparing an agentic workflow with a simple prompt + LLM call, in what typical situation should the agentic approach be adopted?",choices:["When the task is complex and open-ended, and the number of steps cannot be predicted in advance","When the task is simple and follows a fixed procedure","When latency is the top priority and nothing else matters","When the goal is always to minimize cost"],correct:0,explanation:"For complex tasks where the number of steps or procedure cannot be predicted in advance, an agentic approach that makes dynamic decisions as it proceeds is suitable.",diagram:"orchestrator_worker"},
+{domain:"Claude Code Configuration & Workflow",text:"In Claude Code, which is the standard file for giving Claude repository-specific instructions and coding conventions?",choices:["CLAUDE.md","package.json",".gitignore","README.txt"],correct:0,explanation:"CLAUDE.md is the standard file for conveying project-specific context and instructions to Claude Code.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the main use of Claude Code's \"hooks\" feature?",choices:["Automatically executing shell commands in response to specific events (such as before/after tool execution)","Directly editing the model's weights","Changing the UI theme","Limiting network bandwidth"],correct:0,explanation:"Hooks are a mechanism that automatically executes arbitrary shell commands in response to specific events, such as before or after tool execution.",diagram:"permission_hooks"},
+{domain:"Claude Code Configuration & Workflow",text:"If you want to add a custom slash command in Claude Code, where is it common to place the Markdown file?",choices:["In the .claude/commands/ directory","In the node_modules/ directory","In the system's root directory","In the .git/hooks/ directory"],correct:0,explanation:"Placing a Markdown file under .claude/commands/ lets you define your own slash command.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"Where is the configuration for connecting an MCP server to a project in Claude Code mainly managed?",choices:["In .mcp.json or Claude Code's configuration files","In the Dockerfile","In tsconfig.json","In .eslintrc"],correct:0,explanation:"MCP server connection information is managed in a dedicated configuration file such as .mcp.json.",diagram:"mcp_architecture"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the most appropriate purpose for restricting Claude Code's permission mode?",choices:["To require user approval before dangerous commands or file operations are executed","To increase the model's response speed","To lower token pricing","To expand the context window"],correct:0,explanation:"Permission mode is a safety mechanism that inserts a user confirmation step before destructive or irreversible operations are performed.",diagram:"permission_hooks"},
+{domain:"Claude Code Configuration & Workflow",text:"When defining a subagent in Claude Code, what information is generally written in the frontmatter?",choices:["Name, description, and available tools","Database schema","CSS style definitions","DNS records"],correct:0,explanation:"A subagent definition's frontmatter contains meta information such as the name, description, and available tools.",diagram:"subagent_isolation"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the main purpose of using \"plan mode\" in Claude Code?",choices:["To review the implementation approach and reach agreement before making code changes","To automatically delete all files","To disable tests","To rewrite Git history"],correct:0,explanation:"Plan mode is a feature for reaching agreement with the user on an approach before starting implementation, preventing unintended changes.",diagram:"permission_hooks"},
+{domain:"Claude Code Configuration & Workflow",text:"What is an appropriate purpose for using MEMORY.md or memory files in Claude Code?",choices:["Persistently recording the user's preferences and project background across sessions","Using it only to store temporary debug output","Storing API keys","Using it as a substitute for source code"],correct:0,explanation:"Memory files are a mechanism for persisting knowledge or preferences you want to reuse across conversation sessions.",diagram:"claude_code_config"},
+{domain:"Prompt Engineering & Structured Output",text:"When you want the model to produce strict JSON output, what is the most effective way to instruct it?",choices:["Explicitly specify the expected output schema or a concrete example, and clearly instruct it not to include extraneous text","Give no instructions and leave it to the model's judgment","Say nothing about the output format","Always have it respond in natural language"],correct:0,explanation:"Explicitly specifying the output schema or a concrete example increases the accuracy with which the model returns the expected structured output.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"Which correctly describes the difference in roles between the system prompt and the user prompt?",choices:["The system prompt sets the model's overall behavior and role, while the user prompt conveys individual requests","Both play exactly the same role","The system prompt is used only for image input","The user prompt changes the model's weights"],correct:0,explanation:"The system prompt is used to set the overall role and behavior, while the user prompt conveys the content of individual requests.",diagram:"system_vs_user_prompt"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the benefit of few-shot prompting?",choices:["It can improve accuracy by demonstrating the expected output format or style with concrete examples","It can always reduce the token count to zero","It is synonymous with fine-tuning the model","It always shortens latency"],correct:0,explanation:"Providing a small number of concrete examples makes it easier for the model to learn the expected output format and style.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the main benefit of structuring a prompt with XML tags (e.g., <thinking> or <answer>)?",choices:["It becomes easier for the model to clearly distinguish between the instructions and where the output should go","It stops consuming tokens","It enables the model to generate images","It is required for encrypting API responses"],correct:0,explanation:"Using XML tags allows clear separation of instructions, examples, and output areas within a prompt, which improves the model's comprehension accuracy.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"In what situation is \"chain-of-thought\" prompting effective?",choices:["Tasks that require complex reasoning or multi-step calculation","Tasks involving only simple word translation","Tasks involving only image format conversion","It is always ineffective for every task"],correct:0,explanation:"For tasks that require complex reasoning or multi-step calculations, having the model make its intermediate reasoning explicit tends to improve accuracy.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"Which technique is preferred over \"negative instructions\" (things to avoid) for increasing output consistency in a prompt?",choices:["Explicitly and positively instructing the desired behavior","Giving no instructions at all","Listing only prohibitions","Never showing any output examples"],correct:0,explanation:"Positive, specific instructions about what \"to do\" tend to be followed more reliably by the model than negative instructions about what \"not to do.\"",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the benefit of using a tool use \"input schema\" to obtain structured output?",choices:["It makes it easier to force the model's output to conform to a predefined JSON schema","The model can then only output images","Latency is always reduced to zero","Using a tool eliminates the need for a prompt"],correct:0,explanation:"Using a tool use input schema makes it easier to align the model's output with a predefined structure, improving parsing reliability.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When working with long contexts, why is it recommended to place important instructions near the end of the prompt?",choices:["Because the model generally tends to pay stronger attention to more recent instructions","Because information at the beginning is automatically discarded","Because the API returns an error unless instructions are placed at the end","There is no particular reason"],correct:0,explanation:"In long contexts, instructions placed nearer the end tend to receive more of the model's attention, so it is recommended to place important instructions near the end.",diagram:"structured_output_schema"},
+{domain:"Tool Design & MCP Integration",text:"What is the main purpose of MCP (Model Context Protocol)?",choices:["To connect LLM applications to external data sources and tools in a standardized way","To encrypt the model's training data","To optimize GPU memory usage","To speed up UI rendering"],correct:0,explanation:"MCP is an open protocol that lets LLM applications connect to external data sources and tools in a standardized way.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"Which of the following is not a representative primitive that an MCP server can provide?",choices:["Any of Resources, Tools, or Prompts","Neural network weight updates","Resources","Tools"],correct:1,explanation:"MCP servers provide primitives such as Resources, Tools, and Prompts, but updating model weights is not one of them.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"What is a best practice when writing a tool (function) description?",choices:["Describe specifically and clearly when and why the tool should be used","Make it as vague as possible to maximize the model's freedom","Omit the description and let the model judge from the name alone","Reuse a description that overlaps with other tools without adjustment"],correct:0,explanation:"Writing a tool's description with specific conditions and purposes for its use enables the model to select and use the tool appropriately.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What problem commonly arises when multiple tools have similar functionality?",choices:["The model becomes confused about which tool to choose, increasing the likelihood of incorrect calls","Latency is always reduced","Token consumption is always reduced to zero","No problem occurs at all"],correct:0,explanation:"When many tools have overlapping functionality, it becomes harder for the model to choose the appropriate tool, increasing the risk of incorrect calls.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the most appropriate role of \"Resources\" in MCP?",choices:["Exposing data (such as files or API responses) that the application can use as context","Executing fine-tuning of the model","Controlling network routing","Rendering UI components"],correct:0,explanation:"Resources is a primitive representing data exposed by an MCP server to a client that can be used as context.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"When designing a tool's return value (response), what anti-pattern should be avoided?",choices:["Returning unnecessarily large, verbose raw data as-is, which consumes context","Returning necessary information concisely formatted","Returning a clear error message on failure","Returning results in a consistent format"],correct:0,explanation:"Returning verbose raw data as-is wastes the context window and reduces the model's processing efficiency and accuracy.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"Why should idempotency be considered when designing a tool that calls an external API?",choices:["To prevent unintended side effects (such as double billing) even if retries occur","Idempotency is unrelated to latency and need not be considered","To reduce the number of output tokens","To unify the UI's appearance"],correct:0,explanation:"Even if a retry occurs due to a network error, an idempotent design prevents side effects from duplicate execution of the same operation.",diagram:"retry_timeout"},
+{domain:"Context Management & Reliability",text:"What is a common way to handle a conversation approaching the context window limit as it grows longer?",choices:["Summarizing/compressing old messages to keep only the important information","Forcibly terminating the model","Unconditionally deleting all history","Doing nothing"],correct:0,explanation:"Summarizing and compressing old conversation history allows important information to be retained while working within the context window constraint.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the main benefit of using prompt caching?",choices:["It reduces the reprocessing cost and latency of long, repeatedly used context (such as a system prompt)","The model's accuracy always improves","The context window becomes unlimited","Output tokens are automatically encrypted"],correct:0,explanation:"Prompt caching is a mechanism that skips recomputation of fixed context that is used repeatedly, reducing cost and latency.",diagram:"prompt_caching"},
+{domain:"Context Management & Reliability",text:"What should be done with the results of a tool call for an agent to operate reliably?",choices:["Verify the result and, if an error is returned, handle it appropriately or retry","Proceed to the next step without checking the result at all","Always ignore errors","Encrypt the result and discard it"],correct:0,explanation:"Verifying tool call results and appropriately handling errors is essential to reliable agent design.",diagram:"tool_call_flow"},
+{domain:"Context Management & Reliability",text:"Why is a design that isolates context using subagents effective?",choices:["It prevents large intermediate outputs and tool results from consuming the parent agent's limited context","Subagents always have unlimited context","Using subagents always reduces cost to zero","Isolation has no effect"],correct:0,explanation:"By delegating processing to a subagent, large volumes of intermediate output can be prevented from consuming the parent agent's context.",diagram:"subagent_isolation"},
+{domain:"Context Management & Reliability",text:"What is the benefit of persisting progress or state externally (to a file or memory) in a long-running agent task?",choices:["The task can continue without losing context even if the session is interrupted and resumed","Persisting automatically expands the context window","Persisting only ever increases security risk","Persisting always degrades the model's reasoning ability"],correct:0,explanation:"Persisting progress externally allows the task to continue while preserving context even if the session is interrupted and resumed.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the purpose of the \"LLM-as-judge\" pattern for verifying the reliability of model output?",choices:["Evaluating and scoring generated output with a separate LLM call, and prompting regeneration if quality standards are not met","Directly training the model","Measuring network latency","Testing UI accessibility"],correct:0,explanation:"In the LLM-as-judge pattern, a separate LLM call is used to evaluate the output, and if quality standards are not met, a corrective action such as regeneration is prompted.",diagram:"llm_as_judge"},
+{domain:"Agentic Architecture",text:"What is the main benefit of limiting the tools given to a subagent to the minimum necessary?",choices:["It reduces the risk of incorrect tool calls and lets the subagent focus on its intended role","Fewer tools always slow down the model's reasoning speed","Limiting tools always increases cost","The number of tools has no effect on the model's performance"],correct:0,explanation:"Limiting available tools to only those needed for a role reduces the risk of the model selecting the wrong tool and helps it focus on its intended specialization.",diagram:"subagent_isolation"},
+{domain:"Agentic Architecture",text:"In the \"orchestrator-workers\" pattern, when the orchestrator integrates the results from workers, what should be given particular attention?",choices:["Variation in each worker's output format complicates the integration process","Workers always return the same result, so integration is unnecessary","Integration must always be done by a human, not the model","Worker output must be encrypted before integration"],correct:0,explanation:"If each worker's output format is not standardized, the orchestrator's process of integrating results becomes more complex and error-prone.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What problem tends to occur if a stopping condition is not explicitly designed for an agent?",choices:["Wasteful loops or near-infinite attempts occur, increasing cost and latency","The task is always completed in a single call","The model automatically compresses the context","No particular problem occurs"],correct:0,explanation:"Without a clear stopping condition, the agent cannot determine whether it has achieved its objective, risking wasteful loops that increase cost and latency.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"In an autonomous agent loop, what is the significance of incorporating feedback from the environment (such as tool results) at every step?",choices:["It allows the next action to be adaptively determined based on the latest real-world state","Incorporating feedback always reduces latency to zero","Feedback directly rewrites the model's training data","Ignoring feedback always yields higher accuracy"],correct:0,explanation:"Incorporating environmental feedback at each step allows the next action to be adaptively determined based on the latest state, making the agent more robust to changing conditions.",diagram:"react_loop"},
+{domain:"Agentic Architecture",text:"Why is it common to give different system prompts to each agent in a multi-agent system?",choices:["To clearly separate roles and areas of expertise so each agent's behavior is optimized for its own task","Because a system prompt cannot be shared within a single system, so it is split out of necessity","Because using different prompts always lowers API cost","To use different model versions"],correct:0,explanation:"Giving each agent a system prompt that clearly defines its role makes it easier for each to behave in line with its specialization.",diagram:"system_vs_user_prompt"},
+{domain:"Agentic Architecture",text:"What is the significance of \"human-in-the-loop\" in agent design?",choices:["Involving human judgment and approval for important decisions or irreversible operations","A mechanism to completely remove humans from the process","A mechanism to automatically approve all model responses","A design whose sole purpose is to increase latency"],correct:0,explanation:"Human-in-the-loop is a design that involves human judgment and approval at points of important or irreversible decision-making, improving safety and reliability.",diagram:"human_in_the_loop"},
+{domain:"Agentic Architecture",text:"Why should a subagent's result be returned to the parent agent as a summary rather than as raw intermediate data?",choices:["To avoid unnecessarily consuming the parent agent's context window","Because summarizing always makes the information more accurate","Because the API specification prohibits sending raw data","Because summarizing has no relation to model cost"],correct:0,explanation:"Returning a subagent's detailed intermediate data as-is would consume the parent agent's context, so it is preferable to return a summary of the key points.",diagram:"subagent_isolation"},
+{domain:"Agentic Architecture",text:"What is the benefit of combining deterministic code (if-statements, scripts) with LLM calls when designing an agent workflow?",choices:["Reliability and efficiency can both be achieved by leaving processing that requires certainty to code and leaving only judgment/generation tasks to the LLM","Handling everything with the LLM alone is always cheaper","Code and LLMs cannot be combined","Using code disqualifies something from being called an agent"],correct:0,explanation:"Executing deterministic processing with ordinary code and leaving only the parts that require flexible judgment or generation to the LLM allows reliability and cost efficiency to both be achieved.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"Why is a design in which an agent iteratively narrows down search results effective in \"agentic search\"?",choices:["Because when the initial query alone is insufficient, the query can be adjusted based on the information obtained, improving accuracy","Because the goal is to limit the number of searches to one","Because iterative search always reduces cost to zero","Because iterative search always eliminates latency"],correct:0,explanation:"When a single search does not yield sufficient information, iteratively adjusting the query based on the results obtained can improve final accuracy.",diagram:"react_loop"},
+{domain:"Agentic Architecture",text:"What is the significance of logging an agent's decision-making process?",choices:["It helps investigate the cause of failures and audit/improve behavior","Logging automatically improves the model's reasoning accuracy","Logs must never be retained for regulatory reasons","Logs must always be passed to the model as part of the context window on every call"],correct:0,explanation:"Recording the decision-making process in logs provides material for investigating the cause of failures and for auditing/improving the agent's behavior.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"When running multiple subagents in parallel, what is the benefit of each subagent having an independent context?",choices:["Trial-and-error or errors in one subagent do not affect the others","Having an independent context always slows down processing","Having independence means tools can no longer be used","Independent contexts are prohibited by API constraints"],correct:0,explanation:"Because each subagent operates in an independent context, trial-and-error or errors in one subagent are less likely to propagate to others.",diagram:"parallelization"},
+{domain:"Agentic Architecture",text:"When presenting an agent with \"a list of available tools and how to use them,\" which of the following is not good design?",choices:["Omitting descriptions for all tools and listing only their names","Clearly stating each tool's purpose, input parameters, and the situations in which it should be used","Clearly indicating how to distinguish between similar tools","Including examples of the output format"],correct:0,explanation:"Listing only tool names and omitting descriptions leaves the model unable to judge purpose or usage conditions, leading to incorrect tool selection, so this is not good design.",diagram:"tool_call_flow"},
+{domain:"Agentic Architecture",text:"Why should an upper limit be placed on the number of generate-and-evaluate loop iterations in the \"evaluator-optimizer\" workflow?",choices:["To prevent unlimited looping and the resulting increase in cost and latency when the criteria cannot be met","Because without a limit, output always keeps improving","Because the limit is enforced by the API specification and need not be considered","Because setting a limit makes the evaluator unnecessary"],correct:0,explanation:"Even if the evaluation criteria cannot be met, looping indefinitely would cause unbounded increases in cost and latency, so an upper limit on the number of iterations should be set.",diagram:"evaluator_optimizer"},
+{domain:"Agentic Architecture",text:"Why is it important to explicitly manage \"state\" in agent architecture?",choices:["It allows consistent tracking of progress and intermediate results for tasks spanning multiple steps","State management always only increases cost with no benefit","A stateless design is always superior","State management is relevant only to UI design"],correct:0,explanation:"Explicitly managing state allows consistent tracking of progress and intermediate results across multi-step tasks, making it easier to resume or verify midway through.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is an appropriate criterion for deciding whether to answer a task with a single powerful one-shot prompt versus decomposing it into a multi-step agent workflow?",choices:["Comprehensively considering the task's complexity, whether validation steps are needed, and the tolerance for cost and latency","Always choosing the agent workflow","Always choosing a single prompt","No such criterion exists"],correct:0,explanation:"The decision between a single prompt and an agent workflow should comprehensively weigh the task's complexity, the need for validation, and the acceptable cost and latency.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is a desirable recovery design when an agent makes an incorrect tool call?",choices:["Feed the error content back to the model so it can retry with a corrected call","Immediately terminate the entire process when an error occurs","Ignore the error and move on to an unrelated task","Never notify the user of the error"],correct:0,explanation:"When a tool call fails, feeding the error content back to the model so it can retry with a corrected call improves task continuity and reliability.",diagram:"tool_call_flow"},
+{domain:"Claude Code Configuration & Workflow",text:"In Claude Code, what is the setting called that controls whether specific tools (such as Bash commands) may be executed, via allow/deny lists?",choices:["Permission settings (allow/deny rules)","Theme settings","Font settings","Plugin marketplace settings"],correct:0,explanation:"In Claude Code, whether specific tools or commands may be executed can be controlled through permission settings such as allow/deny rules.",diagram:"tool_call_flow"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the recommended basic policy when creating a Git commit in Claude Code?",choices:["Create a commit only when the user explicitly requests it","Automatically commit everything after every change","Always leave the commit message empty","Recommend pushing directly to the main branch"],correct:0,explanation:"To avoid unintended commits, the basic policy is to create a commit only when the user explicitly requests it.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is an appropriate main purpose for using Claude Code's subagent feature?",choices:["Delegating processing to an independent agent with behavior and a tool set specialized for a particular task","Forcibly deleting the main conversation history","Consolidating every task into one giant prompt","Changing network settings"],correct:0,explanation:"The subagent feature is used to delegate processing to an independent agent with behavior and a tool set specialized for a particular task.",diagram:"subagent_isolation"},
+{domain:"Claude Code Configuration & Workflow",text:"What best practice should be followed before executing a destructive command (such as rm -rf) in Claude Code?",choices:["Check the current state with something like git status, and leave a way to revert if possible","Execute immediately without checking anything","Execute without taking a backup","Execute without informing the user"],correct:0,explanation:"Before performing a destructive operation, it is advisable to check the current state and, where possible, leave a means of reverting it.",diagram:"permission_hooks"},
+{domain:"Claude Code Configuration & Workflow",text:"What is an appropriate purpose for the \"Skill\" feature in Claude Code?",choices:["Packaging the procedures and best practices for a specific task so they can be reused repeatedly","A feature used only for managing model API keys","A feature for configuring the OS firewall","A feature that replaces the OS package manager"],correct:0,explanation:"The Skill feature is a mechanism for packaging the procedures and best practices for a specific task so they can be reused whenever needed.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"If you want different permission settings for each project in Claude Code, where is it common to manage them?",choices:["In a project configuration file such as .claude/settings.json","Only in OS-wide global environment variables","In browser cookies","In a DNS configuration file"],correct:0,explanation:"Project-specific permission settings are commonly managed in a per-project configuration file such as .claude/settings.json.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the benefit of running a long-running task in the background in Claude Code?",choices:["The user can proceed with other work in parallel and receive a notification when it completes","Background execution never returns any results at all","Background execution is always less accurate than foreground execution","Background execution is prohibited for security reasons"],correct:0,explanation:"Using background execution lets the user proceed with other work in parallel and receive a notification when the task completes.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it important to give clear instructions when requesting a code review in Claude Code?",choices:["Narrowing the review focus (bugs, security, performance, etc.) makes it easier to get precise feedback","The review always produces the same result regardless of instructions, so they are unnecessary","Giving instructions makes the review impossible to perform","Instructions have no effect at all on the review"],correct:0,explanation:"Clearly specifying the review focus makes it easier to obtain precise, purpose-aligned feedback.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the purpose of using Claude Code hooks to block certain conditions before a tool executes?",choices:["To automatically prevent unintended, dangerous operations before they are executed","To always allow every tool call","Hooks are used only for displaying tool execution results","Using hooks prevents Claude Code from starting up"],correct:0,explanation:"Blocking specific conditions with a pre-tool-execution hook automatically prevents unintended, dangerous operations before they occur.",diagram:"permission_hooks"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the design benefit of restricting the tools assigned to a custom subagent in Claude Code?",choices:["It reduces the risk of the subagent performing operations that deviate from its intended role","Restricting tools always increases processing speed","Restricting tools makes it impossible to define a subagent","Restriction has no benefit"],correct:0,explanation:"Restricting the tools assigned to a subagent reduces the risk of it performing operations that deviate from its intended role.",diagram:"subagent_isolation"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it recommended to use \"plan mode\" to obtain user approval before making a large-scale change in Claude Code?",choices:["It can prevent misunderstandings about the implementation approach and unintended large-scale changes","Using plan mode automatically reverts changes","Plan mode is a feature for changing code without approval","Plan mode is a feature solely for generating documentation"],correct:0,explanation:"Obtaining user approval in advance via plan mode can prevent misunderstandings about the implementation approach and unintended large-scale changes.",diagram:"permission_hooks"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it important to have Claude Code follow the existing test framework and conventions when writing test code?",choices:["It maintains consistency across the whole project and alignment with CI and team members","Test frameworks need not be followed on a per-project basis","Following conventions makes it impossible to run the tests","Consistency does not matter"],correct:0,explanation:"Following the existing test framework and conventions maintains consistency across the whole project and alignment with CI and team members.",diagram:"claude_code_config"},
+{domain:"Prompt Engineering & Structured Output",text:"Why is it recommended to place a long document or data at the beginning of a prompt, followed by the specific instructions?",choices:["So the model can grasp the entire context first and then respond accurately to the instructions","Order has no effect at all on the model's response","Writing instructions first always causes an error","Documents can only be placed after instructions, by specification"],correct:0,explanation:"Presenting a long document or data first, followed by specific instructions, makes it easier for the model to grasp the entire context before responding accurately.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the effect of explicitly giving the model a role (persona) when having it perform a complex task?",choices:["It becomes easier to elicit responses aligned with the desired perspective or expertise","Giving a role always reduces the number of output tokens","Setting a role is effective only for image input","Giving a role always leads to an incorrect response"],correct:0,explanation:"Explicitly giving a role (persona) makes it easier to elicit responses aligned with the desired perspective and expertise.",diagram:"system_vs_user_prompt"},
+{domain:"Prompt Engineering & Structured Output",text:"What technique is effective for increasing the reproducibility (consistency of response for the same input) of output?",choices:["Setting temperature low and strictly specifying the output format","Setting temperature to the maximum value","Not specifying the output format at all","Randomly changing the prompt every time"],correct:0,explanation:"Setting temperature low and strictly specifying the output format makes it easier to increase the reproducibility of the response for the same input.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is an effective way to instruct the model when you want it to generate multiple candidate proposals?",choices:["Explicitly specify the number of candidates to generate and the evaluation criteria for each","Request it without specifying the number of candidates, leaving it vague","Candidate generation cannot be controlled via the system prompt","Candidate generation always requires multiple separate API calls"],correct:0,explanation:"Explicitly specifying the number of candidates desired and the evaluation criteria makes it easier to obtain multiple proposals that match expectations.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"As a countermeasure against prompt injection, what design is recommended when handling text obtained from external sources?",choices:["Clearly distinguish externally sourced text as data and instruct the model not to interpret it as instructions","Treat external text the same as the system prompt and always trust it","Take no countermeasures at all regarding external text","Always ignore external text and never read it"],correct:0,explanation:"Clearly distinguishing externally sourced text as data and instructing the model not to interpret it as instructions can reduce the risk of prompt injection.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When requesting long output, what is an appropriate technique to reduce the risk of the output being cut off midway?",choices:["Have the output generated in stages, or set the maximum token count appropriately","Always have everything generated in a single request, with no countermeasures needed","Output being cut off is solely a model-side problem with no remedy","Splitting the output always reduces accuracy"],correct:0,explanation:"Generating output in stages, or setting the maximum token count appropriately, can reduce the risk of long output being cut off partway through.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the benefit of having the model perform self-critique on its output?",choices:["Having it review its own generated answer can reduce errors and inconsistencies","Self-critique always reduces cost to zero","Self-critique is effective only for image generation","Self-critique always shortens the output"],correct:0,explanation:"The technique of self-critique, where the model reviews its own generated answer, can potentially reduce errors and inconsistencies.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"Why should ambiguous instructions (e.g., \"make it feel right\") be avoided in a prompt?",choices:["Because the model cannot accurately infer the intent, making output that differs from expectations more likely","Because ambiguous instructions always produce higher-accuracy output","Because ambiguous instructions always cause an API error","Because ambiguity has no effect at all on the output token count"],correct:0,explanation:"With ambiguous instructions, the model cannot accurately infer the intent, making output that differs from expectations more likely, so specific instructions are recommended.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the benefit of clearly distinguishing required fields from optional fields when defining a structured output schema?",choices:["The model can correctly understand which information it must fill in, reducing omissions or erroneous generation","Making this distinction has no effect on the model's behavior","Defining optional fields always causes an error","Schemas can only be used with the JSON format"],correct:0,explanation:"Clearly distinguishing required from optional fields lets the model correctly understand what information it must fill in, reducing omissions and erroneous generation.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"Assuming the model's output will be parsed by a downstream program, which instruction should be avoided in the prompt?",choices:["An instruction allowing extra text, such as \"feel free to add supplementary explanation as needed\"","An instruction specifying the output must be JSON only, with no other text","An instruction specifying key names and types explicitly","An instruction providing a sample output"],correct:0,explanation:"Assuming the output will be parsed by a program, an instruction that allows extra free text should be avoided, since it can cause parsing errors.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What characteristic of a task makes it beneficial to include step-by-step instructions in a prompt?",choices:["A complex task that reaches a final conclusion through multiple intermediate judgments","An extremely simple task that only returns a single fixed value","A task that simply returns raw binary image data","Step-by-step instructions are always counterproductive"],correct:0,explanation:"For complex tasks that reach a conclusion through multiple intermediate judgments, step-by-step instructions are effective for improving accuracy.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the benefit of version-controlling a prompt (recording its change history)?",choices:["Changes in output quality caused by prompt changes can be tracked, making it easier to identify the cause when a problem occurs","Version control automatically improves the output","A prompt need never be changed once created, so this is unnecessary","Version control directly reduces API cost"],correct:0,explanation:"Recording a prompt's change history lets you track changes in output quality and makes it easier to identify the cause when a problem occurs.",diagram:"structured_output_schema"},
+{domain:"Tool Design & MCP Integration",text:"Which correctly describes the relationship between an MCP client and an MCP server?",choices:["The client (the LLM application side) connects to the server and uses the tools and resources it provides","The server must always be embedded inside the client","The client and server can only run in the same process","MCP makes no distinction between client and server"],correct:0,explanation:"In MCP, the LLM application side acts as the client, connecting to the server and using the tools and resources the server provides.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"What is an appropriate role for the \"Prompts\" primitive in MCP?",choices:["Providing reusable prompt templates, defined on the server side, to the client","Directly controlling the client's UI layout","Updating the model's training parameters","Generating network encryption keys"],correct:0,explanation:"Prompts is a primitive for providing reusable prompt templates defined by the MCP server to the client.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"In what situation should an enum be used for a tool parameter rather than a free-form string?",choices:["When the set of possible values is limited in advance","When the value is an infinitely diverse natural-language string","Enums should always be avoided for every parameter","Enums cannot be used in a tool definition"],correct:0,explanation:"When the set of possible values is limited in advance, using an enum rather than free-form text helps prevent invalid input.",diagram:"structured_output_schema"},
+{domain:"Tool Design & MCP Integration",text:"Why is it important to design a response that conveys the cause of a failure and how to address it to the model when a tool fails?",choices:["So the model can understand the situation and choose an appropriate retry or alternative approach","Conveying the error content always only increases cost with no benefit","Errors should only ever be conveyed to the user, never to the model","Error messages are unrelated to tool design"],correct:0,explanation:"Conveying the cause of a failure and how to address it to the model allows the model to understand the situation and choose an appropriate retry or alternative approach.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What should be considered when connecting multiple MCP servers simultaneously?",choices:["Designing so the tool names or functionality provided by each server do not overlap or conflict","Only one MCP server can be connected at a time","Connecting multiple servers always improves security","Connecting multiple servers simultaneously is technically impossible"],correct:0,explanation:"When connecting multiple MCP servers simultaneously, care must be taken to ensure the tool names or functionality each provides do not overlap or conflict.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"What should be considered when designing a tool for a long-running operation (such as a long job)?",choices:["Providing a means of asynchronous execution or progress checking so the caller does not mistake a timeout for a failure","Always making it wait synchronously until completion, with no other consideration needed","Long-running operations cannot be designed as tools","Time-consuming operations should always result in an error"],correct:0,explanation:"For time-consuming operations, providing a means of asynchronous execution or progress checking prevents the caller from mistaking a timeout for a failure.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the purpose of properly designing authentication and authorization for an MCP server?",choices:["To prevent unauthorized clients from accessing sensitive data or dangerous operations","Adding authentication always increases the tool's response speed","MCP is a protocol with no concept of authentication, so it is unnecessary","Authentication, once set, can never be changed again"],correct:0,explanation:"Properly designing authentication and authorization prevents unauthorized clients from accessing sensitive data or dangerous operations.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"Why should backward compatibility be considered when changing a tool's version or interface?",choices:["To prevent existing prompts or agent configurations from suddenly breaking","Backward compatibility always only increases cost, so it is unnecessary","MCP has no concept of version management","Considering backward compatibility makes it impossible to add new features"],correct:0,explanation:"Changing an interface without considering backward compatibility risks suddenly breaking existing prompts or agent configurations.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the problem when a tool set is designed with too coarse a granularity (a single tool doing too many things)?",choices:["It becomes harder for the model to grasp the correct usage and required parameters of the tool","Coarser granularity always makes a tool easier to use","Granularity has no effect at all on the model's behavior","A tool with coarse granularity cannot be defined in MCP"],correct:0,explanation:"Packing too much functionality into a single tool makes it harder for the model to grasp the correct usage and required parameters.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"In what situation is it effective to implement pagination (retrieving results in chunks) for a tool's output?",choices:["When a large volume of results could be returned at once, risking consumption of the context","When there is always exactly one result","Pagination is prohibited by the MCP specification","Implementing pagination always increases errors"],correct:0,explanation:"When a large volume of results could be returned at once, implementing pagination can prevent the context from being consumed.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the benefit of adding validation (type and required-field checks) to the input schema of a tool provided by an MCP server?",choices:["It allows malformed calls to be detected early, preventing unintended behavior or errors","Adding validation makes the tool impossible to call","Validation is unrelated to security","Adding validation always severely degrades latency to the point of being impractical"],correct:0,explanation:"Adding validation to the input schema allows malformed calls to be detected early, preventing unintended behavior or errors.",diagram:"mcp_architecture"},
+{domain:"Context Management & Reliability",text:"When performing \"context compaction,\" why is it recommended to summarize rather than simply discard old messages?",choices:["Because it reduces token consumption without losing the important information needed to continue the task","Because summarizing always results in a complete loss of information, so it is not recommended","Because discarding is always more accurate","Because compaction is technically impossible"],correct:0,explanation:"Summarizing old messages rather than simply discarding them reduces token consumption while preserving the important information needed to continue the task.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is an effective countermeasure when an agent keeps repeating the same mistake?",choices:["Explicitly recording past failure patterns or lessons learned in context or memory, and referring to them going forward","Not recording failures, since doing so would only slow processing","Repeated mistakes cannot be addressed","Recording failures is prohibited for security reasons"],correct:0,explanation:"Explicitly recording past failure patterns or lessons learned in memory and referring to them in future decisions can reduce the recurrence of the same mistakes.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"Under the constraint of the context window, why is it important to design so that low-relevance information is excluded (context curation)?",choices:["Because a large amount of irrelevant information can distract the model's attention, increasing the risk of overlooking important information","Because more information always yields higher accuracy","Because curating context always causes an API error","Because curating context is impossible"],correct:0,explanation:"A large amount of irrelevant information can distract the model's attention and increase the risk of overlooking important information, which is why context curation is important.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"When building a highly reliable agent system, what design is appropriate for reducing a single point of failure?",choices:["Building fallback and retry mechanisms into critical processing","Consolidating all processing into a single step","Always halting the entire process unconditionally when a failure occurs","There is no need to consider eliminating a single point of failure"],correct:0,explanation:"Building fallback and retry mechanisms into critical processing reduces reliance on a single point of failure and improves overall system reliability.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the significance of setting a timeout when returning tool call results to the model?",choices:["It prevents indefinite waiting on an unresponsive tool, preserving the responsiveness of the overall system","Setting a timeout always causes processing to fail","Timeouts are unrelated to context management","Setting a timeout makes the tool unusable"],correct:0,explanation:"Setting a timeout prevents indefinite waiting on an unresponsive tool, preserving the responsiveness of the overall system.",diagram:"retry_timeout"},
+{domain:"Context Management & Reliability",text:"How can you prevent an agent from continuing to operate on old assumptions when the user's intent changes over a multi-turn conversation?",choices:["Periodically summarize and confirm the current task and assumptions, and verify they align with the user's latest intent","It is preferable never to change an assumption once made, until the very end","Changes in intent need not be considered","Continuing to use old assumptions improves reliability"],correct:0,explanation:"Periodically summarizing and confirming the current task and assumptions allows the agent to keep pace with changes in the user's intent and avoid continuing to operate on outdated assumptions.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"Even with a model that has a large context window, why should it not be overloaded with unnecessary information?",choices:["Because in addition to increased token cost, low-relevance information can degrade response quality","Because the larger the context window, the more information should be packed in","Because the size of the context window is unrelated to the amount of information","Because packing in information never changes the cost at all"],correct:0,explanation:"Even with a large context window, overloading it with unnecessary information not only increases token cost but can also degrade response quality due to low-relevance information.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the benefit of preparing test cases (an evaluation dataset) before production use, to assess an agent's reliability?",choices:["It allows behavior across various input patterns to be verified in advance, catching problems early","Preparing test cases increases problems in production","An evaluation dataset never needs to be updated once created","Testing does not contribute to reliability"],correct:0,explanation:"Preparing an evaluation dataset before production use and verifying behavior across various input patterns allows problems to be caught early, improving reliability.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the benefit of designing context management so that the system prompt and dynamic user context are separated?",choices:["Stable behavioral rules and volatile, situation-dependent information can be clearly distinguished and managed separately","Separating them always doubles the API cost","Separating them makes prompt caching unusable","Separation is unrelated to reliability"],correct:0,explanation:"Separating the system prompt, which defines stable behavior, from the dynamic user context, which changes frequently, makes it easier to manage each distinctly.",diagram:"system_vs_user_prompt"},
+{domain:"Agentic Architecture",text:"In a multi-agent system, what is the benefit of standardizing the schema used when passing messages between agents?",choices:["Each agent can more easily interpret the other's output, reducing coordination errors","Standardizing the schema always reduces latency to zero","Schema standardization has no effect at all on model performance","Standardizing the schema makes it impossible to increase the number of agents"],correct:0,explanation:"Standardizing the schema of messages passed between agents makes it easier for each agent to interpret the other's output, reducing coordination errors.",diagram:"structured_output_schema"},
+{domain:"Agentic Architecture",text:"In what situation is a design that \"shares progress with the user incrementally\" effective in an agent workflow?",choices:["For a task that takes a long time to complete, where visibility into progress is desired","Only for simple tasks that always complete instantly","Sharing progress is always prohibited for security reasons and should be avoided","Sharing progress causes the task to fail"],correct:0,explanation:"For tasks that take a long time to complete, sharing progress incrementally lets the user follow along, improving the experience.",diagram:"prompt_chaining"},
+{domain:"Agentic Architecture",text:"What should be considered in the design when multiple agents may modify the same external resource (such as a file) simultaneously?",choices:["Introducing a locking or mutual-exclusion mechanism to prevent inconsistencies from contention","No mutual exclusion is needed, and simultaneous writes are always fine","By specification, multiple agents can never access the same resource","Contention is a problem that can safely be ignored"],correct:0,explanation:"When multiple agents may modify the same resource simultaneously, introducing locking or mutual exclusion can prevent inconsistencies caused by contention.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"Why is it important to design agent decision-making with explainability (why a given action was chosen)?",choices:["So humans can understand the cause of an incorrect decision and use it to drive improvement and build trust","Explainability always only increases cost with no benefit","Explainability always increases the agent's speed","Explainability is relevant only to UI design"],correct:0,explanation:"Giving agent decision-making explainability makes it easier for humans to understand the cause of an incorrect decision, aiding improvement and building trust.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"Why is a design that dynamically narrows the number of tools given to an agent according to task complexity (tool filtering) effective?",choices:["Because too many choices make the model more likely to select the wrong tool, so narrowing the choices based on the situation improves accuracy","Narrowing the number of tools always reduces API cost to zero","Tool filtering is technically impossible","The number of tools has no effect at all on the model's decisions"],correct:0,explanation:"Too many available tool choices increases the likelihood of incorrect selection, so dynamically narrowing tools based on the situation can improve accuracy.",diagram:"tool_call_flow"},
+{domain:"Agentic Architecture",text:"What is the benefit of a design (plan-and-select) in which an agent formulates multiple candidate plans and then selects the best one?",choices:["Rather than being locked into a single plan, comparing multiple candidates increases the likelihood of a better decision","Formulating multiple plans always speeds up processing","Formulating multiple plans directly reduces cost","Formulating multiple plans always lowers accuracy"],correct:0,explanation:"Comparing multiple candidate plans, rather than being locked into a single plan, increases the likelihood of making a better decision.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is the benefit of separating \"memory (long-term)\" from \"context (short-term working area)\" in agent architecture?",choices:["It allows appropriate distinction between knowledge that should persist across sessions and information limited to the current task","Separating them always doubles the cost","Memory and context should always be treated as identical","Separation has no effect at all on reliability"],correct:0,explanation:"Separating long-term memory from short-term context allows appropriate distinction between knowledge that should persist across sessions and information limited to the current task.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is the significance of setting a dedicated evaluation metric (success criterion) for a subagent?",choices:["It allows the subagent's output to be objectively measured, making it easier to identify areas for improving the overall workflow","Setting an evaluation metric makes the subagent stop working","Evaluation metrics are related only to cost and unrelated to quality","There is no need at all to set an evaluation metric"],correct:0,explanation:"Setting a dedicated evaluation metric for each subagent allows its output to be objectively measured, making it easier to identify improvements for the overall workflow.",diagram:"subagent_isolation"},
+{domain:"Agentic Architecture",text:"What is the benefit of a design in which an agent explicitly outputs \"what it is doing now and what it plans to do next\" (a scratchpad/visualized internal state)?",choices:["It becomes easier to debug and monitor, catching unintended behavior early","Outputting this always reduces cost to zero","Visualizing internal state only creates security risk","Visualization is of no help at all for debugging"],correct:0,explanation:"Having the agent explicitly output its internal state makes it easier to debug and monitor, catching unintended behavior early.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"Why should it first be considered, when designing an agent workflow, whether a given step \"could be replaced by deterministic code\"?",choices:["Because for processing that requires certainty and reproducibility, ordinary code is often superior to an LLM call in terms of reliability and cost","LLM calls are always faster than code","Implementing something in code is usually technically impossible","Deterministic code should always be avoided because it undermines the \"agentic\" feel"],correct:0,explanation:"Processing that requires certainty and reproducibility is often more reliable and cost-effective with ordinary code than with an LLM call, which is why this should be considered first.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"In a multi-agent configuration, what is the risk of the call hierarchy between agents becoming too deep (multiple layers of subagents of subagents)?",choices:["Debugging becomes difficult, and latency and cost accumulate, making management more complex","Deeper hierarchies always improve accuracy","Hierarchy depth has no effect at all on cost","Deepening the hierarchy is a recommended best practice"],correct:0,explanation:"If the call hierarchy becomes too deep, debugging becomes difficult and latency and cost accumulate, making management more complex.",diagram:"subagent_isolation"},
+{domain:"Agentic Architecture",text:"What problem tends to occur when the goal given to an agent is described too abstractly?",choices:["Interpretations of how to achieve the goal vary, increasing the likelihood of unintended behavior","An abstract goal is always achieved more accurately","The abstraction level of the goal has no effect at all on the result","Using an abstract goal always lowers cost"],correct:0,explanation:"If a goal is described too abstractly, interpretations of how to achieve it vary, increasing the likelihood that the agent takes unintended action.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"What is the benefit of a design that allows simulating (dry-running) changes an agent would make to the external environment (such as the file system) before executing them?",choices:["The scope of impact can be checked before actually applying the change, preventing unintended destructive changes","A dry run is always slower than actual execution and pointless","Performing a dry run always causes an error","A dry run contributes nothing at all to safety"],correct:0,explanation:"Being able to check the scope of impact via a dry run before actually applying a change can prevent unintended destructive changes.",diagram:"orchestrator_worker"},
+{domain:"Agentic Architecture",text:"Which statement correctly describes combining multiple agent patterns (routing, parallelization, orchestrator, etc.) within a single workflow?",choices:["Combining multiple patterns according to the nature of the task allows more complex requirements to be addressed","Only one pattern can be used within a single workflow","Combining patterns always causes an error","Combining patterns is prohibited by specification"],correct:0,explanation:"Combining multiple agent patterns according to the nature of the task allows building a workflow that can address more complex requirements.",diagram:"orchestrator_worker"},
+{domain:"Claude Code Configuration & Workflow",text:"In Claude Code, when combining multiple subagents to advance one large task, what is the benefit of giving each subagent a clear division of responsibility?",choices:["Responsibility boundaries become clear, reducing gaps or duplication in the task","Dividing responsibilities always slows processing","Dividing responsibilities only affects cost and is unrelated to quality","Dividing responsibilities makes it possible to use only a single subagent"],correct:0,explanation:"Giving each subagent a clear division of responsibility makes responsibility boundaries clear, reducing gaps or duplication in the task.",diagram:"subagent_isolation"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the benefit of documenting the project's technology stack and directory structure in CLAUDE.md in Claude Code?",choices:["You avoid repeating the same explanation every time and can proceed with tasks using consistent context","Documenting it always reduces the file size","Documenting the technology stack only increases security risk","What is written in CLAUDE.md has no effect at all on Claude Code's behavior"],correct:0,explanation:"Documenting the technology stack and directory structure in CLAUDE.md avoids repeating the same explanation every time and allows tasks to proceed with consistent context.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it recommended to have Claude Code broadly investigate related files before making changes to an existing codebase?",choices:["Making changes after understanding the existing design and conventions avoids inconsistent implementation","Investigation is always a waste of time and should be skipped","Investigation always causes an error","Investigation has no effect at all on code quality"],correct:0,explanation:"Broadly investigating related files before making a change allows changes to be made with an understanding of the existing design and conventions, avoiding inconsistent implementation.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the benefit of feeding the results of a linter or formatter back as feedback to Claude Code to improve the quality of generated code?",choices:["Mechanically detectable problems can be fixed early, reducing the effort needed for review","Feeding back linter results always halts code generation","Using a linter is unrelated to code quality","Feeding back formatter results always makes the output unstable"],correct:0,explanation:"Feeding linter or formatter results back as feedback allows mechanically detectable problems to be fixed early, reducing review effort.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the benefit of having Claude Code implement a large feature addition incrementally, broken into small units?",choices:["Behavior can be verified at each stage, making it easier to catch and fix problems early","Breaking it up always only extends the development period with no benefit","An incremental implementation is always inferior in quality to a single, all-at-once implementation","Incremental implementation is impossible by specification"],correct:0,explanation:"Implementing a large feature addition incrementally, in small units, allows behavior to be verified at each stage, making it easier to catch and fix problems early.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it important to take care not to include sensitive information (such as API keys) in prompts or commits in Claude Code?",choices:["Because leaking sensitive information can lead to misuse or a security incident","Including sensitive information has no technical impact at all","Managing sensitive information is unrelated to Claude Code's features","Sensitive information included in a commit is automatically encrypted safely"],correct:0,explanation:"Since leaked sensitive information such as API keys can lead to misuse or a security incident, it is important to take care not to include it in prompts or commits.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"What is the problem with passing a tool's execution results (such as test failure logs) unsummarized directly to the next step in Claude Code?",choices:["The verbose information consumes context, and the important cause of failure can get buried","Passing it as-is always produces higher accuracy","Summarizing it falsifies the test results","There is no particular problem"],correct:0,explanation:"Passing test failure logs unsummarized directly to the next step consumes context with verbose information and risks burying the important cause of failure.",diagram:"tool_call_flow"},
+{domain:"Claude Code Configuration & Workflow",text:"In what situation is a design that has Claude Code compare and consider multiple candidate implementations before adoption effective?",choices:["When the design approach has multiple valid options and comparing the trade-offs has high value","For literally every small change, no matter how minor","Comparing multiple candidates is always a waste of time","Comparative consideration is prohibited for security reasons"],correct:0,explanation:"When the design approach has multiple valid options and comparing trade-offs has high value, having multiple candidate implementations compared and considered is effective.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it recommended to always run tests and check the results after making a change in Claude Code?",choices:["Because it allows mechanical verification that existing functionality has not been broken, catching regressions early","Running tests is always an unnecessary cost","Running tests always breaks the code","Test results are unrelated to quality"],correct:0,explanation:"Running tests after a change allows mechanical verification that existing functionality has not been broken, catching regressions early.",diagram:"claude_code_config"},
+{domain:"Claude Code Configuration & Workflow",text:"Why is it effective to ask clarifying questions when receiving an ambiguous request in an interaction with Claude Code?",choices:["It prevents implementation based on a misunderstanding and reduces rework","Asking questions always only wastes time","An ambiguous request is always implemented more accurately as-is","Clarifying questions cannot be used, by Claude Code's specification"],correct:0,explanation:"Asking clarifying questions when receiving an ambiguous request prevents implementation based on a misunderstanding and reduces rework.",diagram:"claude_code_config"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the benefit of showing both a \"good output example\" and a \"bad output example\" in a prompt?",choices:["It conveys both the desired standard and the pattern to avoid concretely, which tends to improve accuracy","Showing a bad example always makes the model output exactly that way","Showing both good and bad examples is prohibited by prompt specification","Showing examples has no effect by itself"],correct:0,explanation:"Showing both good and bad examples conveys both the desired standard and the pattern to avoid concretely, tending to improve output accuracy.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When requesting a summary of a long document from the model, what is the benefit of specifically specifying the summary's length and focus?",choices:["It becomes easier to obtain a summary matching the desired level of detail and focus","Specifying a length always causes the process to fail","Specifying a focus has no effect at all on summary quality","Not specifying anything always produces a higher-accuracy summary"],correct:0,explanation:"Specifically specifying the summary's length and focus makes it easier to obtain a summary matching the desired level of detail and focus.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the effect of instructing in a prompt, \"If you don't know, say so rather than guessing\"?",choices:["It reduces unfounded assertions (hallucination) and makes the model more likely to honestly convey uncertainty","This instruction always reduces the output token count to zero","Giving this instruction always makes the model respond incorrectly","Reporting uncertainty is technically impossible"],correct:0,explanation:"Instructing the model not to guess but to say so when it does not know reduces unfounded assertions and makes it more likely to honestly convey uncertainty.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When requesting a translation task from the model, what is the benefit of specifying the target audience and tone (formal/casual, etc.)?",choices:["It becomes easier to obtain a translation result matching the desired tone and word choice","Specifying the audience and tone always lowers translation accuracy","Specifying the target audience has no effect at all on the translation result","Specifying tone is not possible, by API specification"],correct:0,explanation:"Specifying the target audience and tone makes it easier to obtain a translation result matching the desired tone and word choice.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"Why is it important to test a prompt with a diverse range of input patterns, including edge cases?",choices:["Because it allows discovering weaknesses or defects in advance that would not be found with typical inputs alone","Testing edge cases has no relevance at all to production use","Verifying with diverse inputs is always a wasted effort","Testing typical inputs alone is sufficient, with no additional verification needed"],correct:0,explanation:"Testing with a diverse range of input patterns allows discovering weaknesses or defects in advance that would not be found with typical inputs alone.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When having the model handle input that mixes multiple languages, why is it desirable to explicitly specify the output language?",choices:["To prevent the output from being unintentionally influenced by the input language","Specifying the output language has no effect at all on the result","Input in multiple languages is technically impossible to process","Specifying the language always causes an error"],correct:0,explanation:"Explicitly specifying the output language prevents the output from being unintentionally produced in a language influenced by the input.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is the risk of expressing evaluation criteria in a prompt using only abstract adjectives (such as \"good\" or \"appropriate\")?",choices:["The evaluation criteria are interpreted differently by different people, causing the model's judgment to become inconsistent","Abstract expressions always produce more consistent results","This risk never occurs, due to the API specification","Using abstract adjectives always shortens the output"],correct:0,explanation:"Expressing evaluation criteria with only abstract adjectives causes them to be interpreted differently by different people, making the model's judgment inconsistent.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When requesting code generation from the model, what is the benefit of specifying the expected language version and libraries to use?",choices:["It reduces syntax or API misuse that doesn't fit the environment","Specifying a version always causes code generation to be refused","Specifying the libraries to use is unrelated to code quality","Being explicit always only slows generation with no benefit"],correct:0,explanation:"Specifying the expected language version and libraries to use reduces syntax or API misuse that doesn't fit the environment.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"What is an effective instruction for suppressing the common \"opening preamble\" in model output (such as \"Sure, I'd be happy to\")?",choices:["Explicitly instruct it to output directly from the conclusion or the specified format, without any preamble","The preamble cannot be controlled through instructions","Allowing the preamble always results in higher-quality output","Whether a preamble is present has no effect at all on parsing structured output"],correct:0,explanation:"Explicitly instructing the model to output directly from the conclusion or specified format, without a preamble, makes it easier to suppress the opening preamble.",diagram:"structured_output_schema"},
+{domain:"Prompt Engineering & Structured Output",text:"When only the output format of an intermediate step in a multi-step prompt is changed, why should the entire final output always be retested?",choices:["Because the change to the intermediate step's output format may affect the interpretation or result of subsequent steps","Because intermediate steps have no effect at all on the final output, so retesting is unnecessary","Because retesting is always a waste of time and should be skipped","Because a change to the output format always improves accuracy, so no confirmation is needed"],correct:0,explanation:"Because a change to an intermediate step's output format may affect the interpretation or result of subsequent steps, the entire final output should be retested.",diagram:"structured_output_schema"},
+{domain:"Tool Design & MCP Integration",text:"What is the benefit of a design that has the model self-check the validity of input parameters before calling a tool?",choices:["It can prevent calls with obviously invalid parameters, reducing unnecessary errors","Self-checking always only slows processing with no benefit","Self-checking is technically impossible","Self-checking makes it impossible to call the tool"],correct:0,explanation:"Having the model self-check the validity of input parameters before a call can prevent calls with obviously invalid parameters, reducing unnecessary errors.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"When designing tool calls that span multiple steps (e.g., search -> fetch details), what is the benefit of explicitly showing the model the intermediate results?",choices:["It becomes easier for the model to appropriately judge which tool and arguments to call next","Hiding intermediate results always produces higher accuracy","Showing intermediate results makes the tool stop working","Visualizing intermediate results only affects cost and is unrelated to accuracy"],correct:0,explanation:"Explicitly showing intermediate results makes it easier for the model to appropriately judge which tool and arguments to call next.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the benefit of unifying the naming convention (verb + object, etc.) for tools provided by an MCP server?",choices:["It becomes easier for the model to infer a tool's function from its name, reducing misuse","Unifying the naming convention has no effect at all on the model's behavior","Unifying the naming convention increases the tool's execution speed","A unified naming convention is prohibited by the MCP specification"],correct:0,explanation:"Unifying the naming convention for tools makes it easier for the model to infer function from name, reducing misuse.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"What is the benefit of including candidate next actions (e.g., related tools that can be called next) in a tool's response?",choices:["It becomes easier for the model to judge the next step, improving task continuity","Including candidates always reduces the response size","Including candidate next actions is technically impossible under the MCP specification","Including candidates has no effect at all on judgment"],correct:0,explanation:"Including candidate next actions in a response makes it easier for the model to judge the next step, improving task continuity.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"When deprecating a tool and replacing it with a new one, what is the benefit of letting both coexist for a period of time?",choices:["It prevents existing callers from suddenly breaking and allows for a gradual migration","Letting them coexist always increases security risk","Coexistence of a deprecated tool is not permitted under MCP","Coexistence has no effect at all on ease of migration"],correct:0,explanation:"Letting the old and new tools coexist for a period of time prevents existing callers from suddenly breaking and allows for a gradual migration.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What design consideration is needed when a tool call's arguments may contain sensitive information (such as personal data)?",choices:["Applying masking or minimization so sensitive information is not unnecessarily exposed in logs or external transmission","It is fine to leave sensitive information in logs as-is","Consideration for sensitive information is outside the scope of MCP and unnecessary","It is technically impossible for arguments to contain sensitive information under MCP"],correct:0,explanation:"When arguments may contain sensitive information, masking or minimization should be applied so it is not unnecessarily exposed in logs or external transmission.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the benefit of designing each tool to have a single responsibility (one clear function) when combining multiple tools to achieve one goal?",choices:["The behavior of individual tools becomes more predictable, making it easier to handle complex tasks through combination","Enforcing single responsibility always reduces the number of tools","The single-responsibility principle cannot be applied to MCP tool design","Enforcing single responsibility always reduces call speed"],correct:0,explanation:"Designing each tool to have a single responsibility makes individual behavior more predictable and makes it easier to handle complex tasks through combination.",diagram:"tool_call_flow"},
+{domain:"Tool Design & MCP Integration",text:"What is the purpose of setting a rate limit (a limit on the number of calls) on the MCP server side?",choices:["To prevent resource exhaustion or service overload from excessive calls","Setting a rate limit improves the tool's accuracy","Rate limiting cannot be implemented under the MCP protocol","A rate limit means the same thing as authentication"],correct:0,explanation:"Setting a rate limit prevents resource exhaustion or service overload caused by excessive calls.",diagram:"mcp_architecture"},
+{domain:"Tool Design & MCP Integration",text:"What is the benefit of also documenting \"situations in which the tool should not be used\" in a tool's description?",choices:["It helps prevent calls in the wrong context and encourages proper differentiation from other appropriate tools","Documenting situations not to use it makes the tool unusable","Including negative information in the description violates the MCP specification","Documenting situations not to use it has no effect at all on accuracy"],correct:0,explanation:"Also documenting \"situations in which the tool should not be used\" in the description helps prevent calls in the wrong context and encourages proper differentiation from other appropriate tools.",diagram:"tool_call_flow"},
+{domain:"Context Management & Reliability",text:"In a long session where context has grown large, why is it important to keep retaining a summary of the \"original goal/requirements,\" not just the most recent exchanges?",choices:["To prevent the risk of losing sight of the original goal as the conversation progresses and responding in a way that has drifted off course","The original goal automatically becomes unnecessary over time, so retaining it is meaningless","Retaining the goal is unrelated to context management","Retaining the original requirements always only slows processing with no benefit"],correct:0,explanation:"Continuing to retain a summary of the original goal/requirements prevents the risk of losing sight of it as the conversation progresses and responding in a way that has drifted off course.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is an appropriate measure for improving reliability when the model's responses are unstable (results vary greatly for the same question)?",choices:["Making the output format strict, lowering the temperature, and, if necessary, generating multiple times to use majority vote or verification","Taking no countermeasures and continuing operation as-is","Response instability is a problem that cannot be addressed","Stabilizing it by maximizing the temperature parameter"],correct:0,explanation:"Combining a strict output format, temperature adjustment, and majority vote/verification across multiple generations can improve response instability.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the benefit of a design (graceful degradation) in an agent system that continues operating with some functionality limited when an external service fails?",choices:["The entire system can avoid coming to a complete stop even when some dependency is unavailable","The entire system should always be stopped during a failure, and partial continuation is unnecessary","Graceful degradation is unrelated to reliability design","Introducing this design always only increases cost with no benefit"],correct:0,explanation:"Introducing graceful degradation allows the entire system to avoid coming to a complete stop even when some dependency is unavailable.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"Why is it important to manage the freshness (currency) of external documents included in context?",choices:["Because it reduces the risk of giving an incorrect answer based on outdated information","Document freshness has no effect at all on answer accuracy","Using outdated information always yields more stable results","Freshness management matters only from a cost perspective"],correct:0,explanation:"Managing the freshness of external documents included in context reduces the risk of giving an incorrect answer based on outdated information.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the benefit of periodically performing human sampling review of the model's output?",choices:["It can catch quality degradation or bias that is easily missed by automated evaluation alone","Human review is always less accurate than automated evaluation","Sampling review is nothing but a waste of cost","Human review has no effect at all on the model's behavior"],correct:0,explanation:"Periodic human sampling review can catch quality degradation or bias that is easily missed by automated evaluation alone.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the benefit of a design in which, when conflicting information is obtained from multiple sources, the agent does not simply adopt one side but explicitly flags the conflict?",choices:["It reduces the risk of the user making a judgment based on incorrect information","Ignoring the conflict and adopting one side is always more reliable","Flagging conflicts is a feature unrelated to context management","Processing must always be halted whenever a conflict is found"],correct:0,explanation:"Explicitly flagging conflicting information reduces the risk of the user making a judgment based solely on incorrect information.",diagram:"context_compaction"},
+{domain:"Context Management & Reliability",text:"What is the benefit of periodically analyzing production error logs and failure cases to continuously improve system reliability?",choices:["It allows identifying recurring problem patterns and using them to drive improvements to design or prompts","Analyzing error logs only increases operational cost and does not contribute to improvement","Analyzing failure cases is unrelated to improving reliability","Discarding error logs without analysis is the best practice"],correct:0,explanation:"Periodically analyzing production error logs and failure cases allows identifying recurring problem patterns and using them to drive improvements to design or prompts.",diagram:"tool_call_flow"}
+];
+
+// 内部ロジック（出題比率・分野別集計）は常にQUESTIONS_JAのdomain文字列をキーとして使う。
+// 表示用の言語切り替えはこの辞書でJAドメイン文字列 -> EN表記に変換する。
+const DOMAIN_LABEL_EN = {
+  "アジェンティック・アーキテクチャ": "Agentic Architecture",
+  "Claude Code設定・ワークフロー": "Claude Code Configuration & Workflow",
+  "プロンプトエンジニアリング・構造化出力": "Prompt Engineering & Structured Output",
+  "ツール設計・MCP統合": "Tool Design & MCP Integration",
+  "コンテキスト管理・信頼性": "Context Management & Reliability"
+};
+
+function domainLabel(jaDomain) {
+  return LANG === 'en' ? (DOMAIN_LABEL_EN[jaDomain] || jaDomain) : jaDomain;
+}
 
 // ---- パターン別概念図（SVG） ----
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -460,23 +640,48 @@ const DIAGRAM_CAPTIONS = {
   llm_as_judge: "生成した回答を別のLLMが評価し、合格すれば採用、不合格なら再生成を促します。"
 };
 
+const DIAGRAM_CAPTIONS_EN = {
+  orchestrator_worker: "A central orchestrator breaks the task down, hands pieces to multiple workers, and combines their results.",
+  react_loop: "A cycle of Thought → Action → Observation repeats until the goal is reached.",
+  prompt_chaining: "The task is split into steps, and each step's output is checked before moving to the next.",
+  routing: "Input is classified and routed to the most suitable specialized prompt.",
+  evaluator_optimizer: "A generator produces output, an evaluator checks it, and the loop repeats until it meets the bar.",
+  parallelization: "The task is split into subtasks that run at the same time, then the results are combined.",
+  human_in_the_loop: "A human approval step is inserted before a key action, which only proceeds if approved.",
+  subagent_isolation: "A subagent works in its own isolated context, separate from the parent, and returns only a summary.",
+  mcp_architecture: "An MCP client connects to an MCP server to use capabilities such as Tools, Resources, and Prompts.",
+  tool_call_flow: "The model calls a tool, receives the result (or an error), and decides the next action.",
+  context_compaction: "A long conversation history is summarized, keeping only the important information to compact the context.",
+  prompt_caching: "The first request processes everything; later requests reuse the cached portion for speed.",
+  system_vs_user_prompt: "The system prompt sets overall rules while the user prompt conveys the specific request; both reach the model.",
+  structured_output_schema: "Including a schema in the instructions forces the model's output into a fixed format such as JSON.",
+  permission_hooks: "A risky action only runs if it passes a permission check; otherwise it is blocked.",
+  retry_timeout: "If a tool call fails, it is retried up to a limit before the result is returned.",
+  claude_code_config: "Several configuration pieces — CLAUDE.md, hooks, subagents, and more — together shape how Claude Code behaves.",
+  llm_as_judge: "A separate judge LLM evaluates the generated answer; if it fails, regeneration is prompted."
+};
+
+function diagramCaptions() {
+  return LANG === 'en' ? DIAGRAM_CAPTIONS_EN : DIAGRAM_CAPTIONS;
+}
+
 function renderDiagram(diagramId) {
   const builder = DIAGRAM_BUILDERS[diagramId];
   const box = document.getElementById('diagramBox');
-  if (!builder) { box.innerHTML = ''; box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  const caption = DIAGRAM_CAPTIONS[diagramId] || '';
+  if (!builder) { box.innerHTML = ''; box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const caption = diagramCaptions()[diagramId] || '';
   box.innerHTML = `<svg viewBox="0 0 640 170" width="100%" style="min-width:520px; display:block;">
     <defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#555"/></marker></defs>
     ${builder()}
   </svg>
-  <div style="padding:8px 12px; font-size:0.85em; color:#555; border-top:1px solid #eee; background:#fafbff;">🖼 ${caption}</div>`;
+  <div style="padding:8px 12px; font-size:0.85em; color:#555; border-top:1px solid #eee; background:#fafbff;">🖼 ${esc(caption)}</div>`;
 }
 
-document.getElementById('totalCount').textContent = QUESTIONS.length;
-document.getElementById('countInput').max = QUESTIONS.length;
+document.getElementById('countInput').max = QUESTIONS_JA.length;
 
 // CCAR-F公式の出題ドメイン比率（合計100）。この比率を維持したまま出題数を抽出する。
+// キーは常にQUESTIONS_JAのdomain文字列（言語切り替えの影響を受けない内部キー）。
 const DOMAIN_RATIO = {
   "アジェンティック・アーキテクチャ": 27,
   "Claude Code設定・ワークフロー": 20,
@@ -486,12 +691,99 @@ const DOMAIN_RATIO = {
 };
 const TIME_LIMIT_SECONDS = 120 * 60; // 120分
 
+let LANG = 'ja';
+
+const STRINGS = {
+  ja: {
+    pageTitle: "CCAR-F (Claude Certified Architect - Foundations) 模擬問題集",
+    intro: (n) => `全 ${n} 問収録。出題数を選んで開始してください（各ドメインの出題比率を維持したままランダム抽出されます）。`,
+    scope: (parts) => `出題範囲: ${parts.join(' / ')}`,
+    timeLimit: "制限時間: 120分（超過すると自動採点され、ウィンドウが前面に表示されます）",
+    countLabel: "出題数:",
+    startBtn: "開始する",
+    progress: (i, n) => `問題 ${i} / ${n}`,
+    domainPrefix: "分野: ",
+    timer: (m, s) => `残り時間: ${m}:${s}`,
+    answerBtn: "回答する",
+    nextBtn: "次へ",
+    selectOneAlert: "選択肢を1つ選んでください。",
+    correctHeader: "✅ 正解！",
+    wrongHeader: (letter) => `❌ 不正解。正解は ${letter} です。`,
+    diagramNote: (caption) => `🖼 図解でおさらい: ${caption}`,
+    timeUpAlert: "制限時間（120分）に達したため、試験を自動終了します。",
+    titleFlash: "⏰ 時間切れ！ - ",
+    resultSummary: (correct, total, pct) => `結果: ${correct} / ${total} 正解 (${pct}%)`,
+    domainStatsHeader: "【分野別成績】",
+    missedHeader: "【誤答・未回答だった問題】",
+    allCorrect: "全問正解です！",
+    correctAnswerLabel: "正解: ",
+    retryBtn: "もう一度挑戦する"
+  },
+  en: {
+    pageTitle: "CCAR-F (Claude Certified Architect - Foundations) Practice Quiz",
+    intro: (n) => `${n} questions available. Choose how many to answer and start (they are drawn at random while keeping each domain's official ratio).`,
+    scope: (parts) => `Scope: ${parts.join(' / ')}`,
+    timeLimit: "Time limit: 120 minutes (the exam is auto-graded and the window is brought to the front if you go over)",
+    countLabel: "Number of questions:",
+    startBtn: "Start",
+    progress: (i, n) => `Question ${i} / ${n}`,
+    domainPrefix: "Domain: ",
+    timer: (m, s) => `Time remaining: ${m}:${s}`,
+    answerBtn: "Submit answer",
+    nextBtn: "Next",
+    selectOneAlert: "Please select one answer.",
+    correctHeader: "✅ Correct!",
+    wrongHeader: (letter) => `❌ Incorrect. The correct answer is ${letter}.`,
+    diagramNote: (caption) => `🖼 Diagram recap: ${caption}`,
+    timeUpAlert: "Time's up (120 minutes) — the exam has been graded automatically.",
+    titleFlash: "⏰ Time's up! - ",
+    resultSummary: (correct, total, pct) => `Result: ${correct} / ${total} correct (${pct}%)`,
+    domainStatsHeader: "Score by domain",
+    missedHeader: "Missed / unanswered questions",
+    allCorrect: "All correct!",
+    correctAnswerLabel: "Correct answer: ",
+    retryBtn: "Try again"
+  }
+};
+
+function t() { return STRINGS[LANG]; }
+
+function applyStaticStrings() {
+  document.getElementById('pageTitle').textContent = t().pageTitle;
+  document.title = t().pageTitle;
+  document.getElementById('introText').textContent = t().intro(QUESTIONS_JA.length);
+  const scopeParts = Object.entries(DOMAIN_RATIO).map(([d, r]) => `${domainLabel(d)} ${r}%`);
+  document.getElementById('scopeText').textContent = t().scope(scopeParts);
+  document.getElementById('timeLimitText').textContent = t().timeLimit;
+  document.getElementById('countLabel').textContent = t().countLabel;
+  document.getElementById('startBtn').textContent = t().startBtn;
+  document.getElementById('answerBtn').textContent = t().answerBtn;
+  document.getElementById('nextBtn').textContent = t().nextBtn;
+  document.getElementById('retryBtn').textContent = t().retryBtn;
+  document.getElementById('langJaBtn').classList.toggle('active', LANG === 'ja');
+  document.getElementById('langEnBtn').classList.toggle('active', LANG === 'en');
+  document.documentElement.lang = LANG;
+}
+
+function setLang(lang) {
+  LANG = lang;
+  applyStaticStrings();
+  if (!questionCard.classList.contains('hidden')) {
+    showQuestion(true);
+  } else if (!resultCard.classList.contains('hidden')) {
+    showResult(true);
+  }
+}
+
+// sessionとmissedは常にQUESTIONS_JAへの元インデックス(0-149)を保持する。
+// domainStatsのキーも常にQUESTIONS_JAのdomain文字列（内部キー）。表示だけdomainLabel()で言語変換する。
 let session = [];
 let currentIndex = 0;
 let correctCount = 0;
 let domainStats = {};
 let missed = [];
 let answered = false;
+let selectedPos = -1;
 let examFinished = false;
 let remainingSeconds = TIME_LIMIT_SECONDS;
 let timerHandle = null;
@@ -503,6 +795,10 @@ const answerBtn = document.getElementById('answerBtn');
 const nextBtn = document.getElementById('nextBtn');
 const feedbackEl = document.getElementById('feedback');
 const timerLabelEl = document.getElementById('timerLabel');
+
+function getQ(idx) {
+  return (LANG === 'en' && QUESTIONS_EN[idx]) ? QUESTIONS_EN[idx] : QUESTIONS_JA[idx];
+}
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -516,11 +812,14 @@ function shuffle(arr) {
 /**
  * ドメインごとの出題比率(DOMAIN_RATIO)を維持したまま、指定数の問題をランダムに抽出する。
  * 最大剰余法で端数を配分し、各ドメインのプール数を超えないようにする。
+ * 戻り値はQUESTIONS_JAへのインデックス配列。
  */
 function selectExamQuestions(count) {
   const byDomain = {};
   for (const domain of Object.keys(DOMAIN_RATIO)) {
-    byDomain[domain] = shuffle(QUESTIONS.filter(q => q.domain === domain));
+    byDomain[domain] = shuffle(
+      QUESTIONS_JA.map((q, i) => i).filter(i => QUESTIONS_JA[i].domain === domain)
+    );
   }
 
   const ratioSum = Object.values(DOMAIN_RATIO).reduce((a, b) => a + b, 0);
@@ -569,7 +868,7 @@ function selectExamQuestions(count) {
 document.getElementById('startBtn').addEventListener('click', () => {
   let count = parseInt(document.getElementById('countInput').value, 10);
   if (!count || count < 1) count = 1;
-  if (count > QUESTIONS.length) count = QUESTIONS.length;
+  if (count > QUESTIONS_JA.length) count = QUESTIONS_JA.length;
 
   session = selectExamQuestions(count);
   currentIndex = 0;
@@ -609,7 +908,7 @@ function stopTimer() {
 function updateTimerLabel() {
   const m = String(Math.max(remainingSeconds, 0) / 60 | 0).padStart(2, '0');
   const s = String(Math.max(remainingSeconds, 0) % 60).padStart(2, '0');
-  timerLabelEl.textContent = `残り時間: ${m}:${s}`;
+  timerLabelEl.textContent = t().timer(m, s);
   timerLabelEl.style.color = remainingSeconds <= 300 ? '#ea4335' : '';
 }
 
@@ -619,24 +918,25 @@ function handleTimeUp() {
   // 未回答分（現在の問題が未回答ならそれ以降）を不正解として集計する
   const startUnanswered = answered ? currentIndex + 1 : currentIndex;
   for (let i = startUnanswered; i < session.length; i++) {
-    const q = session[i];
-    domainStats[q.domain] = domainStats[q.domain] || { correct: 0, total: 0 };
-    domainStats[q.domain].total++;
-    missed.push(q);
+    const idx = session[i];
+    const domain = QUESTIONS_JA[idx].domain;
+    domainStats[domain] = domainStats[domain] || { correct: 0, total: 0 };
+    domainStats[domain].total++;
+    missed.push(idx);
   }
 
   bringWindowToFront();
-  alert('制限時間（120分）に達したため、試験を自動終了します。');
+  alert(t().timeUpAlert);
   showResult();
 }
 
 function bringWindowToFront() {
   // ブラウザの制約上、他アプリの最前面には出せないが、可能な範囲でウィンドウにフォーカスを戻す
   window.focus();
-  const originalTitle = document.title;
+  const originalTitle = t().pageTitle;
   let flashCount = 0;
   const flashHandle = setInterval(() => {
-    document.title = (flashCount % 2 === 0) ? '⏰ 時間切れ！ - ' + originalTitle : originalTitle;
+    document.title = (flashCount % 2 === 0) ? t().titleFlash + originalTitle : originalTitle;
     flashCount++;
     if (flashCount > 6) {
       clearInterval(flashHandle);
@@ -648,66 +948,99 @@ function bringWindowToFront() {
 let currentOrder = []; // 表示位置(0-3) -> 元のchoices配列インデックス
 let currentCorrectPos = 0; // 今表示している並びでの正解位置
 
-function showQuestion() {
-  answered = false;
-  const q = session[currentIndex];
-  document.getElementById('progress').textContent = `問題 ${currentIndex + 1} / ${session.length}`;
-  document.getElementById('domainLabel').textContent = `分野: ${q.domain}`;
-  renderDiagram(q.diagram);
-  document.getElementById('qtext').textContent = `${currentIndex + 1}. ${q.text}`;
-
-  currentOrder = shuffle([0, 1, 2, 3]);
-  currentCorrectPos = currentOrder.indexOf(q.correct);
-
+function renderChoices() {
+  const qJA = QUESTIONS_JA[session[currentIndex]];
+  const q = getQ(session[currentIndex]);
   const choicesEl = document.getElementById('choices');
   choicesEl.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
   currentOrder.forEach((origIndex, pos) => {
     const label = document.createElement('label');
     label.className = 'choice';
-    label.innerHTML = `<input type="radio" name="choice" value="${pos}"> ${letters[pos]}. ${esc(q.choices[origIndex])}`;
+    if (answered) {
+      if (pos === currentCorrectPos) label.classList.add('correct');
+      else if (pos === selectedPos) label.classList.add('wrong');
+    }
+    const checkedAttr = pos === selectedPos ? 'checked' : '';
+    const disabledAttr = answered ? 'disabled' : '';
+    label.innerHTML = `<input type="radio" name="choice" value="${pos}" ${checkedAttr} ${disabledAttr}> ${letters[pos]}. ${esc(q.choices[origIndex])}`;
     choicesEl.appendChild(label);
   });
+}
 
-  feedbackEl.className = 'feedback hidden';
-  feedbackEl.textContent = '';
-  answerBtn.disabled = false;
-  nextBtn.disabled = true;
+function buildFeedbackHtml(isCorrect, correctLetter) {
+  const qJA = QUESTIONS_JA[session[currentIndex]];
+  const q = getQ(session[currentIndex]);
+  const caption = diagramCaptions()[qJA.diagram] || '';
+  const diagramNote = caption
+    ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">${esc(t().diagramNote(caption))}</div>`
+    : '';
+  const header = isCorrect ? t().correctHeader : t().wrongHeader(correctLetter);
+  return `<strong>${esc(header)}</strong><br>${esc(q.explanation)}${diagramNote}`;
+}
+
+function renderFeedback() {
+  if (!answered) {
+    feedbackEl.className = 'feedback hidden';
+    feedbackEl.innerHTML = '';
+    document.getElementById('diagramBox').classList.add('hidden');
+    return;
+  }
+  const isCorrect = selectedPos === currentCorrectPos;
+  const correctLetter = ['A', 'B', 'C', 'D'][currentCorrectPos];
+  feedbackEl.className = isCorrect ? 'feedback correct' : 'feedback wrong';
+  feedbackEl.innerHTML = buildFeedbackHtml(isCorrect, correctLetter);
+  const qJA = QUESTIONS_JA[session[currentIndex]];
+  renderDiagram(qJA.diagram);
+}
+
+function showQuestion(preserveState) {
+  const idx = session[currentIndex];
+  const qJA = QUESTIONS_JA[idx];
+  const q = getQ(idx);
+
+  document.getElementById('progress').textContent = t().progress(currentIndex + 1, session.length);
+  document.getElementById('domainLabel').textContent = t().domainPrefix + domainLabel(qJA.domain);
+  document.getElementById('qtext').textContent = `${currentIndex + 1}. ${q.text}`;
+
+  if (!preserveState) {
+    answered = false;
+    selectedPos = -1;
+    currentOrder = shuffle([0, 1, 2, 3]);
+    currentCorrectPos = currentOrder.indexOf(qJA.correct);
+  }
+
+  renderChoices();
+  renderFeedback();
+  answerBtn.disabled = answered;
+  nextBtn.disabled = !answered;
 }
 
 answerBtn.addEventListener('click', () => {
   if (answered || examFinished) return;
   const selectedInput = document.querySelector('input[name="choice"]:checked');
   if (!selectedInput) {
-    alert('選択肢を1つ選んでください。');
+    alert(t().selectOneAlert);
     return;
   }
   answered = true;
-  const selected = parseInt(selectedInput.value, 10);
-  const q = session[currentIndex];
-  const labels = document.querySelectorAll('#choices label.choice');
-  labels.forEach(l => l.querySelector('input').disabled = true);
+  selectedPos = parseInt(selectedInput.value, 10);
+  const idx = session[currentIndex];
+  const domain = QUESTIONS_JA[idx].domain;
 
-  domainStats[q.domain] = domainStats[q.domain] || { correct: 0, total: 0 };
-  domainStats[q.domain].total++;
+  domainStats[domain] = domainStats[domain] || { correct: 0, total: 0 };
+  domainStats[domain].total++;
 
-  labels[currentCorrectPos].classList.add('correct');
-  const isCorrect = selected === currentCorrectPos;
-  const caption = DIAGRAM_CAPTIONS[q.diagram] || '';
-  const diagramNote = caption
-    ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">🖼 <strong>図解でおさらい:</strong> ${esc(caption)}（上の図も参照してください）</div>`
-    : '';
+  const isCorrect = selectedPos === currentCorrectPos;
   if (isCorrect) {
     correctCount++;
-    domainStats[q.domain].correct++;
-    feedbackEl.className = 'feedback correct';
-    feedbackEl.innerHTML = `<strong>✅ 正解！</strong><br>${esc(q.explanation)}${diagramNote}`;
+    domainStats[domain].correct++;
   } else {
-    labels[selected].classList.add('wrong');
-    missed.push(q);
-    feedbackEl.className = 'feedback wrong';
-    feedbackEl.innerHTML = `<strong>❌ 不正解。正解は ${['A','B','C','D'][currentCorrectPos]} です。</strong><br>${esc(q.explanation)}${diagramNote}`;
+    missed.push(idx);
   }
+
+  renderChoices();
+  renderFeedback();
 
   answerBtn.disabled = true;
   nextBtn.disabled = false;
@@ -724,7 +1057,7 @@ nextBtn.addEventListener('click', () => {
   }
 });
 
-function showResult() {
+function showResult(preserveState) {
   examFinished = true;
   stopTimer();
   questionCard.classList.add('hidden');
@@ -732,22 +1065,24 @@ function showResult() {
 
   const total = session.length;
   const pct = total === 0 ? 0 : (100 * correctCount / total).toFixed(1);
-  document.getElementById('resultSummary').textContent = `結果: ${correctCount} / ${total} 正解 (${pct}%)`;
+  document.getElementById('resultSummary').textContent = t().resultSummary(correctCount, total, pct);
 
   const statsEl = document.getElementById('domainStats');
-  let statsHtml = '<p><strong>【分野別成績】</strong></p>';
+  let statsHtml = `<p><strong>${esc(t().domainStatsHeader)}</strong></p>`;
   for (const [domain, s] of Object.entries(domainStats)) {
-    statsHtml += `<div>・${domain}: ${s.correct} / ${s.total}</div>`;
+    statsHtml += `<div>・${esc(domainLabel(domain))}: ${s.correct} / ${s.total}</div>`;
   }
   statsEl.innerHTML = statsHtml;
 
   const missedEl = document.getElementById('missedList');
   if (missed.length === 0) {
-    missedEl.innerHTML = '<p><strong>全問正解です！</strong></p>';
+    missedEl.innerHTML = `<p><strong>${esc(t().allCorrect)}</strong></p>`;
   } else {
-    let html = '<p><strong>【誤答・未回答だった問題】</strong></p>';
-    missed.forEach(q => {
-      html += `<div class="item">${q.text}<br><span style="color:#34a853;">正解: ${q.choices[q.correct]}</span></div>`;
+    let html = `<p><strong>${esc(t().missedHeader)}</strong></p>`;
+    missed.forEach(idx => {
+      const qJA = QUESTIONS_JA[idx];
+      const q = getQ(idx);
+      html += `<div class="item">${esc(q.text)}<br><span style="color:#34a853;">${esc(t().correctAnswerLabel)}${esc(q.choices[qJA.correct])}</span></div>`;
     });
     missedEl.innerHTML = html;
   }
@@ -757,6 +1092,11 @@ document.getElementById('retryBtn').addEventListener('click', () => {
   resultCard.classList.add('hidden');
   startCard.classList.remove('hidden');
 });
+
+document.getElementById('langJaBtn').addEventListener('click', () => setLang('ja'));
+document.getElementById('langEnBtn').addEventListener('click', () => setLang('en'));
+
+applyStaticStrings();
 </script>
 </body>
 </html>
