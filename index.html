@@ -1588,36 +1588,36 @@ document.getElementById('modeEnBtn').addEventListener('click', () => selectMode(
 // ---- 重要用語集 ----
 // 問題集を解くうえで特に押さえておきたい用語。用語名は英語表記のまま、解説は日本語。
 const GLOSSARY = [
-  { id: "orchestrator-worker", category: "Agentic Architecture", term: "Orchestrator / Worker", keywords: ["Orchestrator", "Worker"], ja: "Orchestratorはタスクを分解し、複数のWorkerに割り振って結果を統合する中心的なコンポーネント。Workerは割り当てられたSubtaskを実行する。" },
-  { id: "react", category: "Agentic Architecture", term: "ReAct（Reasoning + Acting）", keywords: ["ReAct"], ja: "推論（Reasoning）と行動（Acting）を交互に繰り返しながらTaskを進めるAgentパターン。「思考→行動→観察」のLoopとして図解される。" },
-  { id: "subagent", category: "Agentic Architecture", term: "Subagent", keywords: ["Subagent", "Subagents"], ja: "親Agentとは独立したContextで動作する子Agent。詳細な中間結果ではなく要約のみを親に返すことで、親のContextを圧迫から守る。" },
-  { id: "prompt-chaining", category: "Agentic Architecture", term: "Prompt chaining", keywords: ["Prompt chaining"], ja: "Taskを明確な逐次Stepに分解し、各Stepの出力を検証しながら順番に処理を進めるWorkflow。" },
-  { id: "routing", category: "Agentic Architecture", term: "Routing", keywords: ["Routing"], ja: "入力内容を分類し、それぞれに最適な専用Promptやモデルへ振り分けるパターン。" },
-  { id: "evaluator-optimizer", category: "Agentic Architecture", term: "Evaluator-optimizer", keywords: ["Evaluator-optimizer", "Evaluator"], ja: "生成した結果をEvaluatorがチェックし、基準を満たすまで生成と評価を繰り返すパターン。" },
-  { id: "parallelization", category: "Agentic Architecture", term: "Parallelization", keywords: ["Parallelization"], ja: "Taskを複数のSubtaskに分割して同時に実行し、最後に結果を統合するパターン。" },
-  { id: "human-in-the-loop", category: "Agentic Architecture", term: "Human-in-the-loop", keywords: ["Human-in-the-loop", "human-in-the-loop", "Escalation"], ja: "重要または不可逆な意思決定の場面で、人間の判断・承認を介在させる設計。Escalation（人間への引き継ぎ）もこの一種。" },
-  { id: "provenance", category: "Agentic Architecture", term: "Provenance（出所）", keywords: ["Provenance"], ja: "生成・抽出されたデータが「どの情報源のどの箇所から得られたか」を記録すること。誤りの追跡やレビューを容易にする。" },
-  { id: "graceful-degradation", category: "Agentic Architecture", term: "Graceful degradation", keywords: ["Graceful degradation"], ja: "一部の依存先（外部Serviceなど）が利用できない場合でも、機能を縮退させつつSystem全体の運用を継続する設計。" },
-  { id: "claude-md", category: "Claude Code", term: "CLAUDE.md", keywords: ["CLAUDE.md"], ja: "プロジェクト固有の指示やコーディング規約をClaude Codeに伝えるための標準File。" },
-  { id: "hooks", category: "Claude Code", term: "hooks", keywords: ["hooks"], ja: "特定のEvent（Tool実行前後など）に応じて自動的にShellコマンドを実行する仕組み。危険な操作のBlockなどに使う。" },
-  { id: "slash-command", category: "Claude Code", term: "Slash command", keywords: ["Slash Command", "Slash command"], ja: ".claude/commands/ 配下にMarkdown Fileを置くことで定義できる、独自のカスタムCommand。" },
-  { id: "plan-mode", category: "Claude Code", term: "Plan mode", keywords: ["Plan mode", "Plan Mode"], ja: "コードを変更する前に実装方針をReviewし、UserのApprovalを得てから実行に移るClaude Codeの機能。" },
-  { id: "memory-md", category: "Claude Code", term: "MEMORY.md", keywords: ["MEMORY.md"], ja: "Sessionをまたいでユーザーの好みやProjectの背景を永続的に記録するためのMemory File。" },
-  { id: "permission-mode", category: "Claude Code", term: "Permission mode（allow / deny rules）", keywords: ["Permission mode", "パーミッション設定"], ja: "特定のToolやCommandの実行可否を制御するPermission設定。危険な操作の前にUserのApprovalを求める安全機構。" },
-  { id: "system-user-prompt", category: "Prompt Engineering", term: "System prompt / User prompt", keywords: ["System prompt", "User prompt", "System Prompt", "User Prompt"], ja: "System promptはModel全体の役割・振る舞いを設定し、User promptは個々のRequest内容を伝える。" },
-  { id: "structured-output", category: "Prompt Engineering", term: "Structured output", keywords: ["構造化出力", "Structured output"], ja: "JSONなど、あらかじめ定義したSchemaに沿った形式でModelに出力させること。" },
-  { id: "json-schema", category: "Prompt Engineering", term: "JSON Schema", keywords: ["JSON Schema", "JSONスキーマ", "Schema"], ja: "構造化出力の型や必須項目を定義する仕様。null許容Fieldなどを明示することで欠落や誤生成を減らせる。" },
-  { id: "prefill", category: "Prompt Engineering", term: "Prefill（response prefill）", keywords: ["プレフィル", "Prefill"], ja: "Modelの応答の先頭を事前に指定する手法。余分な前置きを省き、期待する形式から書き始めさせやすくする。" },
-  { id: "stateless", category: "Prompt Engineering", term: "Stateless（ステートレスAPI）", keywords: ["ステートレス", "Stateless"], ja: "サーバー側が会話履歴を保持しない性質。マルチターンの会話は、毎回のRequestに履歴を含めることで実現する。" },
-  { id: "mcp", category: "Tool Design & MCP", term: "MCP（Model Context Protocol）", keywords: ["Model Context Protocol", "MCP"], ja: "LLMアプリケーションが外部のデータソースやToolに標準化された方法で接続するためのOpenプロトコル。" },
-  { id: "mcp-client-server", category: "Tool Design & MCP", term: "MCP Client / Server", keywords: ["MCP Client", "MCP Server", "MCPクライアント", "MCPサーバー"], ja: "Client（LLMアプリケーション側）がServerに接続し、Serverが提供するToolやResourceを利用する構成。" },
-  { id: "mcp-primitives", category: "Tool Design & MCP", term: "Resources / Tools / Prompts（MCP primitives）", keywords: ["Resources", "Prompts」プリミティブ"], ja: "MCP Serverが提供する3つの主要な機能。ResourcesはContext Data、ToolsはExecute可能な関数、Promptsは再利用可能なTemplate。" },
-  { id: "tool-choice", category: "Tool Design & MCP", term: "tool_choice", keywords: ["tool_choice"], ja: "Modelに特定のToolを強制的に呼び出させるための制御。次のActionが確定している場合などに使う。" },
-  { id: "idempotency", category: "Tool Design & MCP", term: "Idempotency（冪等性）", keywords: ["冪等性", "Idempotency", "idempotency"], ja: "同じ操作を複数回実行しても結果が変わらない性質。Retry時の二重実行による副作用を防ぐために重要。" },
-  { id: "context-window", category: "Context & Reliability", term: "Context window / Compaction", keywords: ["Context window", "コンテキストウィンドウ"], ja: "Modelが一度に処理できるContextの上限、およびそれを超えないよう古い履歴を要約して圧縮する対処法。" },
-  { id: "prompt-caching", category: "Context & Reliability", term: "Prompt caching", keywords: ["プロンプトキャッシュ", "Prompt caching"], ja: "繰り返し使われる長いContext（System promptなど）の再処理Costとレイテンシを削減する仕組み。" },
-  { id: "llm-as-judge", category: "Context & Reliability", term: "LLM-as-judge", keywords: ["LLM-as-judge"], ja: "生成された出力を別のLLM呼び出しで評価・採点し、品質基準を満たさない場合は再生成を促すパターン。" },
-  { id: "message-batches", category: "Context & Reliability", term: "Message Batches", keywords: ["Message Batches"], ja: "リアルタイム応答が不要な大量のRequestを、Costを抑えつつまとめて処理する仕組み。" }
+  { id: "orchestrator-worker", category: "Agentic Architecture", term: "Orchestrator / Worker", kana: "オーケストレーター / ワーカー", keywords: ["Orchestrator", "Worker", "オーケストレーター", "ワーカー"], ja: "Orchestrator（オーケストレーター）はタスクを分解し、複数のWorker（ワーカー）に割り振って結果を統合する中心的なコンポーネント。Workerは割り当てられたSubtaskを実行する。" },
+  { id: "react", category: "Agentic Architecture", term: "ReAct（Reasoning + Acting）", kana: "リアクト", keywords: ["ReAct"], ja: "推論（Reasoning）と行動（Acting）を交互に繰り返しながらTaskを進めるAgentパターン。「思考→行動→観察」のLoopとして図解される。" },
+  { id: "subagent", category: "Agentic Architecture", term: "Subagent", kana: "サブエージェント", keywords: ["Subagent", "Subagents", "サブエージェント"], ja: "親Agent（エージェント）とは独立したContextで動作する子Agent。詳細な中間結果ではなく要約のみを親に返すことで、親のContextを圧迫から守る。" },
+  { id: "prompt-chaining", category: "Agentic Architecture", term: "Prompt chaining", kana: "プロンプトチェイニング", keywords: ["Prompt chaining", "プロンプトチェイニング"], ja: "Taskを明確な逐次Stepに分解し、各Stepの出力を検証しながら順番に処理を進めるWorkflow。" },
+  { id: "routing", category: "Agentic Architecture", term: "Routing", kana: "ルーティング", keywords: ["Routing", "ルーティング"], ja: "入力内容を分類し、それぞれに最適な専用Promptやモデルへ振り分けるパターン。" },
+  { id: "evaluator-optimizer", category: "Agentic Architecture", term: "Evaluator-optimizer", kana: "エバリュエーター・オプティマイザー / 評価者", keywords: ["Evaluator-optimizer", "Evaluator", "評価者"], ja: "生成した結果をEvaluator（評価者）がチェックし、基準を満たすまで生成と評価を繰り返すパターン。" },
+  { id: "parallelization", category: "Agentic Architecture", term: "Parallelization", kana: "並列化", keywords: ["Parallelization", "並列化"], ja: "Taskを複数のSubtaskに分割して同時に実行し、最後に結果を統合するパターン。" },
+  { id: "human-in-the-loop", category: "Agentic Architecture", term: "Human-in-the-loop", kana: "ヒューマン・イン・ザ・ループ", keywords: ["Human-in-the-loop", "human-in-the-loop", "Escalation", "エスカレーション", "ハンドオフ"], ja: "重要または不可逆な意思決定の場面で、人間の判断・承認を介在させる設計。Escalation（エスカレーション、人間への引き継ぎ）やHandoff（ハンドオフ）もこの一種。" },
+  { id: "provenance", category: "Agentic Architecture", term: "Provenance（出所）", kana: "プロベナンス", keywords: ["Provenance", "出所"], ja: "生成・抽出されたデータが「どの情報源のどの箇所から得られたか」を記録すること。誤りの追跡やレビューを容易にする。" },
+  { id: "graceful-degradation", category: "Agentic Architecture", term: "Graceful degradation", kana: "グレースフルデグラデーション", keywords: ["Graceful degradation", "グレースフルデグラデーション"], ja: "一部の依存先（外部Serviceなど）が利用できない場合でも、機能を縮退させつつSystem全体の運用を継続する設計。" },
+  { id: "claude-md", category: "Claude Code", term: "CLAUDE.md", kana: "", keywords: ["CLAUDE.md"], ja: "プロジェクト固有の指示やコーディング規約をClaude Codeに伝えるための標準File。" },
+  { id: "hooks", category: "Claude Code", term: "hooks", kana: "フック", keywords: ["hooks", "フック"], ja: "特定のEvent（Tool実行前後など）に応じて自動的にShellコマンドを実行する仕組み。危険な操作のBlockなどに使う。" },
+  { id: "slash-command", category: "Claude Code", term: "Slash command", kana: "スラッシュコマンド", keywords: ["Slash Command", "Slash command", "スラッシュコマンド"], ja: ".claude/commands/ 配下にMarkdown Fileを置くことで定義できる、独自のカスタムCommand。" },
+  { id: "plan-mode", category: "Claude Code", term: "Plan mode", kana: "プランモード", keywords: ["Plan mode", "Plan Mode", "プランモード"], ja: "コードを変更する前に実装方針をReviewし、UserのApprovalを得てから実行に移るClaude Codeの機能。" },
+  { id: "memory-md", category: "Claude Code", term: "MEMORY.md", kana: "", keywords: ["MEMORY.md"], ja: "Sessionをまたいでユーザーの好みやProjectの背景を永続的に記録するためのMemory File。" },
+  { id: "permission-mode", category: "Claude Code", term: "Permission mode（allow / deny rules）", kana: "パーミッション設定", keywords: ["Permission mode", "パーミッション設定", "パーミッション"], ja: "特定のToolやCommandの実行可否を制御するPermission設定。危険な操作の前にUserのApprovalを求める安全機構。" },
+  { id: "system-user-prompt", category: "Prompt Engineering", term: "System prompt / User prompt", kana: "システムプロンプト / ユーザープロンプト", keywords: ["System prompt", "User prompt", "System Prompt", "User Prompt", "システムプロンプト", "ユーザープロンプト"], ja: "System prompt（システムプロンプト）はModel全体の役割・振る舞いを設定し、User prompt（ユーザープロンプト）は個々のRequest内容を伝える。" },
+  { id: "structured-output", category: "Prompt Engineering", term: "Structured output", kana: "構造化出力", keywords: ["構造化出力", "Structured output"], ja: "JSONなど、あらかじめ定義したSchemaに沿った形式でModelに出力させること。" },
+  { id: "json-schema", category: "Prompt Engineering", term: "JSON Schema", kana: "JSONスキーマ", keywords: ["JSON Schema", "JSONスキーマ", "スキーマ", "Schema"], ja: "構造化出力の型や必須項目を定義する仕様。null許容Fieldなどを明示することで欠落や誤生成を減らせる。" },
+  { id: "prefill", category: "Prompt Engineering", term: "Prefill（response prefill）", kana: "プレフィル", keywords: ["プレフィル", "Prefill"], ja: "Modelの応答の先頭を事前に指定する手法。余分な前置きを省き、期待する形式から書き始めさせやすくする。" },
+  { id: "stateless", category: "Prompt Engineering", term: "Stateless（ステートレスAPI）", kana: "ステートレス", keywords: ["ステートレス", "Stateless"], ja: "サーバー側が会話履歴を保持しない性質。マルチターンの会話は、毎回のRequestに履歴を含めることで実現する。" },
+  { id: "mcp", category: "Tool Design & MCP", term: "MCP（Model Context Protocol）", kana: "", keywords: ["Model Context Protocol", "MCP"], ja: "LLMアプリケーションが外部のデータソースやToolに標準化された方法で接続するためのOpenプロトコル。" },
+  { id: "mcp-client-server", category: "Tool Design & MCP", term: "MCP Client / Server", kana: "MCPクライアント / MCPサーバー", keywords: ["MCP Client", "MCP Server", "MCPクライアント", "MCPサーバー", "クライアント", "サーバー"], ja: "Client（クライアント、LLMアプリケーション側）がServer（サーバー）に接続し、Serverが提供するToolやResourceを利用する構成。" },
+  { id: "mcp-primitives", category: "Tool Design & MCP", term: "Resources / Tools / Prompts（MCP primitives）", kana: "", keywords: ["Resources", "Prompts」プリミティブ"], ja: "MCP Serverが提供する3つの主要な機能。ResourcesはContext Data、ToolsはExecute可能な関数、Promptsは再利用可能なTemplate。" },
+  { id: "tool-choice", category: "Tool Design & MCP", term: "tool_choice", kana: "", keywords: ["tool_choice"], ja: "Modelに特定のToolを強制的に呼び出させるための制御。次のActionが確定している場合などに使う。" },
+  { id: "idempotency", category: "Tool Design & MCP", term: "Idempotency（冪等性）", kana: "", keywords: ["冪等性", "Idempotency", "idempotency"], ja: "同じ操作を複数回実行しても結果が変わらない性質。Retry時の二重実行による副作用を防ぐために重要。" },
+  { id: "context-window", category: "Context & Reliability", term: "Context window / Compaction", kana: "コンテキストウィンドウ", keywords: ["Context window", "コンテキストウィンドウ"], ja: "Modelが一度に処理できるContextの上限、およびそれを超えないよう古い履歴を要約して圧縮する対処法。" },
+  { id: "prompt-caching", category: "Context & Reliability", term: "Prompt caching", kana: "プロンプトキャッシュ", keywords: ["プロンプトキャッシュ", "Prompt caching", "キャッシュ"], ja: "繰り返し使われる長いContext（System promptなど）の再処理Costとレイテンシを削減する仕組み。" },
+  { id: "llm-as-judge", category: "Context & Reliability", term: "LLM-as-judge", kana: "", keywords: ["LLM-as-judge"], ja: "生成された出力を別のLLM呼び出しで評価・採点し、品質基準を満たさない場合は再生成を促すパターン。" },
+  { id: "message-batches", category: "Context & Reliability", term: "Message Batches", kana: "", keywords: ["Message Batches"], ja: "リアルタイム応答が不要な大量のRequestを、Costを抑えつつまとめて処理する仕組み。" }
 ];
 
 function renderGlossary() {
@@ -1629,7 +1629,8 @@ function renderGlossary() {
   Object.entries(groups).forEach(([category, items]) => {
     html += `<h3 style="font-size:0.95em; color:#1a73e8; margin:16px 0 6px;">${esc(category)}</h3>`;
     items.forEach(item => {
-      html += `<div id="glossary-item-${item.id}" class="glossary-entry" style="margin-bottom:10px; padding:4px; border-radius:4px;"><strong>${esc(item.term)}</strong><br><span style="color:#333;">${esc(item.ja)}</span></div>`;
+      const kanaLabel = item.kana ? `<span style="color:#888; font-weight:normal; font-size:0.9em;">（${esc(item.kana)}）</span>` : '';
+      html += `<div id="glossary-item-${item.id}" class="glossary-entry" style="margin-bottom:10px; padding:4px; border-radius:4px;"><strong>${esc(item.term)}</strong>${kanaLabel}<br><span style="color:#333;">${esc(item.ja)}</span></div>`;
     });
   });
   document.getElementById('glossaryList').innerHTML = html;
@@ -1670,6 +1671,9 @@ document.getElementById('glossaryBackBtn').addEventListener('click', hideGlossar
 // ---- 問題文・選択肢・解説文中の用語集の単語をクリック可能にする ----
 function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+// \b（単語境界）はASCII文字（[A-Za-z0-9_]）を基準にした概念で、全角カタカナ・漢字には
+// 一切マッチしない。そのため英数字のみの語句には\bを付け、日本語を含む語句には付けずに
+// そのまま部分一致させる（長い語句を先に判定することで誤爆を防ぐ）。
 const GLOSSARY_TERM_REGEX = (() => {
   const entries = [];
   GLOSSARY.forEach(item => {
@@ -1683,16 +1687,17 @@ const GLOSSARY_TERM_REGEX = (() => {
     if (seen.has(e.surface)) return;
     seen.add(e.surface);
     surfaceToId[e.surface] = e.id;
-    alternatives.push(escapeRegExp(e.surface));
+    const isAsciiOnly = /^[\x00-\x7F]+$/.test(e.surface);
+    const escapedSurface = escapeRegExp(e.surface);
+    alternatives.push(isAsciiOnly ? `\\b${escapedSurface}\\b` : escapedSurface);
   });
-  return { regex: new RegExp('\\b(?:' + alternatives.join('|') + ')\\b', 'g'), surfaceToId };
+  return { regex: new RegExp('(?:' + alternatives.join('|') + ')', 'g'), surfaceToId };
 })();
 
-// テキストをHTMLエスケープしたうえで、用語集の単語をクリック可能なspanに変換する。
-// 「全部日本語版」では英単語が登場しないため何もリンクしない。
+// テキストをHTMLエスケープしたうえで、用語集の単語（英語表記・カタカナ表記どちらも）を
+// クリック可能なspanに変換する。日本語/英語版・全部日本語版のどちらでも動作する。
 function escAndLinkify(text) {
   const escaped = esc(text);
-  if (CONTENT_MODE === 'ja_only') return escaped;
   return escaped.replace(GLOSSARY_TERM_REGEX.regex, (matched) => {
     const id = GLOSSARY_TERM_REGEX.surfaceToId[matched];
     if (!id) return matched;
