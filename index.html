@@ -442,161 +442,167 @@ function svgLabel(x, y, label) {
   return `<text x="${x}" y="${y}" text-anchor="middle" font-size="10" fill="#555">${esc(label)}</text>`;
 }
 
+// 図解内のラベルを現在の表示言語(LANG)に合わせて出し分ける
+function L(ja, en) { return LANG === 'en' ? en : ja; }
+
 const DIAGRAM_BUILDERS = {
   orchestrator_worker: () => {
-    let s = svgBox(240, 10, 160, 36, "オーケストレーター\n（タスク分解）");
-    const workers = ["ワーカー1", "ワーカー2", "ワーカー3"];
+    let s = svgBox(240, 10, 160, 36, L("オーケストレーター\n（タスク分解）", "Orchestrator\n(breaks down task)"));
+    const workers = [L("ワーカー1", "Worker 1"), L("ワーカー2", "Worker 2"), L("ワーカー3", "Worker 3")];
     const xs = [60, 250, 440];
     xs.forEach((x, i) => { s += svgBox(x, 80, 140, 36, workers[i]); s += svgArrow(320, 46, x + 70, 80); });
-    s += svgBox(220, 138, 200, 28, "結果を統合", true);
+    s += svgBox(220, 138, 200, 28, L("結果を統合", "Combine results"), true);
     xs.forEach(x => { s += svgArrow(x + 70, 116, 320, 138); });
     return s;
   },
   react_loop: () => {
-    let s = svgBox(40, 65, 140, 40, "思考\n(Reasoning)");
-    s += svgBox(250, 65, 140, 40, "行動\n(Acting / ツール実行)");
-    s += svgBox(460, 65, 140, 40, "観察\n(Observation)");
+    let s = svgBox(40, 65, 140, 40, L("思考\n(Reasoning)", "Thought\n(Reasoning)"));
+    s += svgBox(250, 65, 140, 40, L("行動\n(Acting / ツール実行)", "Action\n(Acting / tool call)"));
+    s += svgBox(460, 65, 140, 40, L("観察\n(Observation)", "Observation"));
     s += svgArrow(180, 85, 250, 85);
     s += svgArrow(390, 85, 460, 85);
     s += svgCurveBack(530, 105, 110, 105, 530, 150, 110, 150);
-    s += svgLabel(320, 148, "目標達成まで繰り返す");
+    s += svgLabel(320, 148, L("目標達成まで繰り返す", "Repeat until the goal is reached"));
     return s;
   },
   prompt_chaining: () => {
-    const steps = ["ステップ1", "ステップ2", "ステップ3", "完了"];
+    const steps = [L("ステップ1", "Step 1"), L("ステップ2", "Step 2"), L("ステップ3", "Step 3"), L("完了", "Done")];
     let s = '', x = 20, w = 130;
     steps.forEach((label, i) => {
       s += svgBox(x, 70, w, 40, label, i === steps.length - 1);
-      if (i < steps.length - 1) s += svgArrow(x + w, 90, x + w + 20, 90, "検証");
+      if (i < steps.length - 1) s += svgArrow(x + w, 90, x + w + 20, 90, L("検証", "Verify"));
       x += w + 20;
     });
     return s;
   },
   routing: () => {
-    let s = svgBox(30, 65, 120, 40, "入力");
-    s += svgDiamond(260, 85, 140, 70, "分類");
-    const targets = ["専用プロンプトA", "専用プロンプトB", "専用プロンプトC"];
+    let s = svgBox(30, 65, 120, 40, L("入力", "Input"));
+    s += svgDiamond(260, 85, 140, 70, L("分類", "Classify"));
+    const targets = [L("専用プロンプトA", "Specialized prompt A"), L("専用プロンプトB", "Specialized prompt B"), L("専用プロンプトC", "Specialized prompt C")];
     const ys = [10, 85, 150];
     s += svgArrow(150, 85, 190, 85);
     targets.forEach((t, i) => { s += svgBox(440, ys[i], 170, 32, t); s += svgArrow(330, 85, 440, ys[i] + 16); });
     return s;
   },
   evaluator_optimizer: () => {
-    let s = svgBox(30, 65, 140, 40, "生成\n(Generator)");
-    s += svgBox(240, 65, 140, 40, "評価\n(Evaluator)");
-    s += svgDiamond(500, 85, 130, 70, "基準達成?");
+    let s = svgBox(30, 65, 140, 40, L("生成\n(Generator)", "Generate\n(Generator)"));
+    s += svgBox(240, 65, 140, 40, L("評価\n(Evaluator)", "Evaluate\n(Evaluator)"));
+    s += svgDiamond(500, 85, 130, 70, L("基準達成?", "Meets the bar?"));
     s += svgArrow(170, 85, 240, 85);
     s += svgArrow(380, 85, 435, 85);
     s += svgArrow(565, 85, 610, 85, "Yes");
-    s += svgBox(600, 65, 40, 40, "採用");
-    s += svgCurveBack(500, 50, 100, 50, 500, 15, 100, 15, "No（再生成）");
+    s += svgBox(600, 65, 40, 40, L("採用", "Adopt"));
+    s += svgCurveBack(500, 50, 100, 50, 500, 15, 100, 15, L("No（再生成）", "No (regenerate)"));
     return s;
   },
   parallelization: () => {
-    let s = svgBox(20, 65, 110, 40, "入力タスク");
-    const boxes = ["サブタスクA", "サブタスクB", "サブタスクC"];
+    let s = svgBox(20, 65, 110, 40, L("入力タスク", "Input task"));
+    const boxes = [L("サブタスクA", "Subtask A"), L("サブタスクB", "Subtask B"), L("サブタスクC", "Subtask C")];
     const ys = [5, 65, 125];
     boxes.forEach((b, i) => { s += svgBox(220, ys[i], 150, 32, b); s += svgArrow(130, 85, 220, ys[i] + 16); });
-    s += svgBox(470, 65, 150, 40, "結果を統合", true);
+    s += svgBox(470, 65, 150, 40, L("結果を統合", "Combine results"), true);
     ys.forEach(y => { s += svgArrow(370, y + 16, 470, 85); });
     return s;
   },
   human_in_the_loop: () => {
-    let s = svgBox(20, 65, 170, 40, "エージェントの提案");
-    s += svgDiamond(320, 85, 150, 70, "人間が承認？");
-    s += svgBox(500, 20, 130, 36, "実行", true);
-    s += svgBox(500, 115, 130, 36, "却下・修正依頼");
+    let s = svgBox(20, 65, 170, 40, L("エージェントの提案", "Agent's proposal"));
+    s += svgDiamond(320, 85, 150, 70, L("人間が承認？", "Human approves?"));
+    s += svgBox(500, 20, 130, 36, L("実行", "Execute"), true);
+    s += svgBox(500, 115, 130, 36, L("却下・修正依頼", "Reject / request changes"));
     s += svgArrow(190, 85, 245, 85);
     s += svgArrow(395, 60, 500, 38, "Yes");
     s += svgArrow(395, 110, 500, 133, "No");
     return s;
   },
   subagent_isolation: () => {
-    let s = svgBox(220, 8, 200, 36, "親エージェント（会話コンテキスト）");
-    const subs = ["サブエージェントA\n（独立コンテキスト）", "サブエージェントB\n（独立コンテキスト）"];
+    let s = svgBox(220, 8, 200, 36, L("親エージェント（会話コンテキスト）", "Parent agent (conversation context)"));
+    const subs = [
+      L("サブエージェントA\n（独立コンテキスト）", "Subagent A\n(isolated context)"),
+      L("サブエージェントB\n（独立コンテキスト）", "Subagent B\n(isolated context)")
+    ];
     const xs = [60, 380];
     subs.forEach((label, i) => {
       s += svgBox(xs[i], 100, 200, 55, label);
-      s += svgArrow(320, 44, xs[i] + 100, 100, "委譲");
+      s += svgArrow(320, 44, xs[i] + 100, 100, L("委譲", "Delegate"));
     });
-    s += svgLabel(320, 78, "要約のみ返却しコンテキストを保護");
+    s += svgLabel(320, 78, L("要約のみ返却しコンテキストを保護", "Returns only a summary, protecting context"));
     return s;
   },
   mcp_architecture: () => {
-    let s = svgBox(20, 65, 180, 45, "MCPクライアント\n(LLMアプリケーション)");
+    let s = svgBox(20, 65, 180, 45, L("MCPクライアント\n(LLMアプリケーション)", "MCP Client\n(LLM application)"));
     s += `<rect x="430" y="20" width="190" height="130" rx="10" fill="#F5F5F5" stroke="#999" stroke-width="1.5"/>`;
-    s += `<text x="525" y="35" text-anchor="middle" font-size="11" fill="#222">MCPサーバー</text>`;
+    s += `<text x="525" y="35" text-anchor="middle" font-size="11" fill="#222">${esc(L("MCPサーバー", "MCP Server"))}</text>`;
     s += svgBox(450, 40, 150, 28, "Tools");
     s += svgBox(450, 76, 150, 28, "Resources");
     s += svgBox(450, 112, 150, 28, "Prompts");
-    s += svgArrow(200, 80, 430, 55, "接続・利用");
-    s += svgArrow(430, 100, 200, 100, "結果");
+    s += svgArrow(200, 80, 430, 55, L("接続・利用", "Connect & use"));
+    s += svgArrow(430, 100, 200, 100, L("結果", "Result"));
     return s;
   },
   tool_call_flow: () => {
-    let s = svgBox(40, 30, 160, 40, "モデル");
-    s += svgBox(420, 30, 160, 40, "ツール");
-    s += svgArrow(200, 45, 420, 45, "① 呼び出し（引数）");
-    s += svgArrow(420, 70, 200, 70, "② 結果 / エラーを返す");
-    s += svgBox(40, 110, 540, 40, "③ モデルが結果を検証し、次のアクションを決定", true);
+    let s = svgBox(40, 30, 160, 40, L("モデル", "Model"));
+    s += svgBox(420, 30, 160, 40, L("ツール", "Tool"));
+    s += svgArrow(200, 45, 420, 45, L("① 呼び出し（引数）", "① Call (with arguments)"));
+    s += svgArrow(420, 70, 200, 70, L("② 結果 / エラーを返す", "② Returns result / error"));
+    s += svgBox(40, 110, 540, 40, L("③ モデルが結果を検証し、次のアクションを決定", "③ Model checks the result and decides the next action"), true);
     return s;
   },
   context_compaction: () => {
     let s = '';
     for (let i = 0; i < 6; i++) s += svgBox(10 + i * 55, 60, 45, 40, "msg" + (i + 1));
-    s += svgArrow(340, 80, 400, 80, "圧縮");
-    s += svgBox(410, 55, 210, 50, "要約\n（重要情報のみ保持）", true);
+    s += svgArrow(340, 80, 400, 80, L("圧縮", "Compact"));
+    s += svgBox(410, 55, 210, 50, L("要約\n（重要情報のみ保持）", "Summary\n(keeps only key info)"), true);
     return s;
   },
   prompt_caching: () => {
-    let s = svgLabel(100, 25, "1回目リクエスト");
-    s += svgBox(20, 40, 300, 30, "システムプロンプト全体を処理（遅い）");
-    s += svgLabel(100, 100, "2回目リクエスト");
-    s += svgBox(20, 115, 220, 30, "キャッシュ済み（高速）", true);
-    s += svgBox(245, 115, 75, 30, "新規部分");
+    let s = svgLabel(100, 25, L("1回目リクエスト", "1st request"));
+    s += svgBox(20, 40, 300, 30, L("システムプロンプト全体を処理（遅い）", "Processes the whole system prompt (slow)"));
+    s += svgLabel(100, 100, L("2回目リクエスト", "2nd request"));
+    s += svgBox(20, 115, 220, 30, L("キャッシュ済み（高速）", "Cached (fast)"), true);
+    s += svgBox(245, 115, 75, 30, L("新規部分", "New part"));
     return s;
   },
   system_vs_user_prompt: () => {
-    let s = svgBox(30, 15, 260, 40, "システムプロンプト\n（役割・振る舞いのルール）");
-    s += svgBox(30, 70, 260, 40, "ユーザープロンプト\n（個別のリクエスト）");
-    s += svgBox(450, 42, 150, 40, "モデル");
+    let s = svgBox(30, 15, 260, 40, L("システムプロンプト\n（役割・振る舞いのルール）", "System prompt\n(role & behavior rules)"));
+    s += svgBox(30, 70, 260, 40, L("ユーザープロンプト\n（個別のリクエスト）", "User prompt\n(specific request)"));
+    s += svgBox(450, 42, 150, 40, L("モデル", "Model"));
     s += svgArrow(290, 35, 450, 55);
     s += svgArrow(290, 90, 450, 70);
     return s;
   },
   structured_output_schema: () => {
-    let s = svgBox(20, 60, 220, 50, "指示 + JSONスキーマ\n（型・必須項目を明示）");
-    s += svgBox(280, 60, 120, 50, "モデル");
+    let s = svgBox(20, 60, 220, 50, L("指示 + JSONスキーマ\n（型・必須項目を明示）", "Instructions + JSON schema\n(types & required fields)"));
+    s += svgBox(280, 60, 120, 50, L("モデル", "Model"));
     s += svgBox(440, 40, 180, 30, '{ "key": "value" }', true);
-    s += svgBox(440, 90, 180, 30, "余分な自由文は含めない");
+    s += svgBox(440, 90, 180, 30, L("余分な自由文は含めない", "No extra free text included"));
     s += svgArrow(240, 85, 280, 85);
     s += svgArrow(400, 70, 440, 55);
     s += svgArrow(400, 95, 440, 105);
     return s;
   },
   permission_hooks: () => {
-    let s = svgBox(20, 65, 180, 40, "危険な操作の要求\n（rm -rf など）");
-    s += svgDiamond(340, 85, 150, 70, "権限チェック");
-    s += svgBox(520, 20, 110, 36, "実行", true);
-    s += svgBox(520, 115, 110, 36, "ブロック\n/ 確認を要求");
+    let s = svgBox(20, 65, 180, 40, L("危険な操作の要求\n（rm -rf など）", "Risky action request\n(e.g. rm -rf)"));
+    s += svgDiamond(340, 85, 150, 70, L("権限チェック", "Permission check"));
+    s += svgBox(520, 20, 110, 36, L("実行", "Execute"), true);
+    s += svgBox(520, 115, 110, 36, L("ブロック\n/ 確認を要求", "Block\n/ request confirmation"));
     s += svgArrow(200, 85, 265, 85);
-    s += svgArrow(410, 60, 520, 38, "許可");
-    s += svgArrow(410, 110, 520, 133, "拒否");
+    s += svgArrow(410, 60, 520, 38, L("許可", "Allow"));
+    s += svgArrow(410, 110, 520, 133, L("拒否", "Deny"));
     return s;
   },
   retry_timeout: () => {
-    let s = svgBox(30, 65, 160, 40, "ツール呼び出し");
-    s += svgDiamond(320, 85, 140, 70, "成功？");
-    s += svgBox(500, 65, 120, 40, "結果を返す", true);
+    let s = svgBox(30, 65, 160, 40, L("ツール呼び出し", "Tool call"));
+    s += svgDiamond(320, 85, 140, 70, L("成功？", "Success?"));
+    s += svgBox(500, 65, 120, 40, L("結果を返す", "Return result"), true);
     s += svgArrow(190, 85, 250, 85);
     s += svgArrow(390, 85, 500, 85, "Yes");
     s += svgCurveBack(320, 50, 110, 50, 320, 5, 110, 5);
-    s += svgLabel(270, 15, "No（上限回数までリトライ / タイムアウト）");
+    s += svgLabel(270, 15, L("No（上限回数までリトライ / タイムアウト）", "No (retry up to the limit / timeout)"));
     return s;
   },
   claude_code_config: () => {
     let s = svgBox(250, 65, 140, 40, "Claude Code", true);
-    const items = ["CLAUDE.md", "hooks", "サブエージェント", ".mcp.json", "スラッシュコマンド"];
+    const items = ["CLAUDE.md", "hooks", L("サブエージェント", "Subagents"), ".mcp.json", L("スラッシュコマンド", "Slash commands")];
     const pos = [[10,5],[150,5],[320,5],[480,5],[230,130]];
     items.forEach((label, i) => {
       s += svgBox(pos[i][0], pos[i][1], 130, 32, label);
@@ -607,14 +613,14 @@ const DIAGRAM_BUILDERS = {
     return s;
   },
   llm_as_judge: () => {
-    let s = svgBox(30, 65, 140, 40, "生成\n(LLM)");
-    s += svgBox(240, 65, 140, 40, "評価\n(判定LLM)");
-    s += svgDiamond(500, 85, 130, 70, "合格？");
+    let s = svgBox(30, 65, 140, 40, L("生成\n(LLM)", "Generate\n(LLM)"));
+    s += svgBox(240, 65, 140, 40, L("評価\n(判定LLM)", "Evaluate\n(judge LLM)"));
+    s += svgDiamond(500, 85, 130, 70, L("合格？", "Pass?"));
     s += svgArrow(170, 85, 240, 85);
     s += svgArrow(380, 85, 435, 85);
     s += svgArrow(565, 85, 610, 85, "Yes");
-    s += svgBox(598, 65, 40, 40, "採用");
-    s += svgCurveBack(500, 50, 100, 50, 500, 15, 100, 15, "No（再生成を促す）");
+    s += svgBox(598, 65, 40, 40, L("採用", "Adopt"));
+    s += svgCurveBack(500, 50, 100, 50, 500, 15, 100, 15, L("No（再生成を促す）", "No (prompt regeneration)"));
     return s;
   }
 };
