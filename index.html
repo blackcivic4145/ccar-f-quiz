@@ -545,8 +545,8 @@ function svgLabel(x, y, label) {
   return `<text x="${x}" y="${y}" text-anchor="middle" font-size="10" fill="#555">${esc(label)}</text>`;
 }
 
-// 図解内のラベルを現在の表示言語(LANG)に合わせて出し分ける
-function L(ja, en) { return LANG === 'en' ? en : ja; }
+// 図解は回答解説の一部として常に日本語で表示する（問題文の表示言語には連動させない）
+function L(ja, en) { return ja; }
 
 const DIAGRAM_BUILDERS = {
   orchestrator_worker: () => {
@@ -771,7 +771,8 @@ const DIAGRAM_CAPTIONS_EN = {
 };
 
 function diagramCaptions() {
-  return LANG === 'en' ? DIAGRAM_CAPTIONS_EN : DIAGRAM_CAPTIONS;
+  // 図解キャプションも回答解説の一部として常に日本語
+  return DIAGRAM_CAPTIONS;
 }
 
 function renderDiagram(diagramId) {
@@ -1083,15 +1084,16 @@ function renderChoices() {
   });
 }
 
+// 回答解説（ヘッダー・解説文・図解キャプション）は、問題文の表示言語(LANG)に関わらず常に日本語で表示する。
+// 専門用語（MCP, hooksなど）は元の日本語解説内で英語表記のまま残る。
 function buildFeedbackHtml(isCorrect, correctLetter) {
   const qJA = QUESTIONS_JA[session[currentIndex]];
-  const q = getQ(session[currentIndex]);
   const caption = diagramCaptions()[qJA.diagram] || '';
   const diagramNote = caption
-    ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">${esc(t().diagramNote(caption))}</div>`
+    ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">${esc(STRINGS.ja.diagramNote(caption))}</div>`
     : '';
-  const header = isCorrect ? t().correctHeader : t().wrongHeader(correctLetter);
-  return `<strong>${esc(header)}</strong><br>${esc(q.explanation)}${diagramNote}`;
+  const header = isCorrect ? STRINGS.ja.correctHeader : STRINGS.ja.wrongHeader(correctLetter);
+  return `<strong>${esc(header)}</strong><br>${esc(qJA.explanation)}${diagramNote}`;
 }
 
 function renderFeedback() {
