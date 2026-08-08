@@ -645,6 +645,9 @@ function bringWindowToFront() {
   }, 500);
 }
 
+let currentOrder = []; // 表示位置(0-3) -> 元のchoices配列インデックス
+let currentCorrectPos = 0; // 今表示している並びでの正解位置
+
 function showQuestion() {
   answered = false;
   const q = session[currentIndex];
@@ -653,13 +656,16 @@ function showQuestion() {
   renderDiagram(q.diagram);
   document.getElementById('qtext').textContent = `${currentIndex + 1}. ${q.text}`;
 
+  currentOrder = shuffle([0, 1, 2, 3]);
+  currentCorrectPos = currentOrder.indexOf(q.correct);
+
   const choicesEl = document.getElementById('choices');
   choicesEl.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
-  q.choices.forEach((choice, i) => {
+  currentOrder.forEach((origIndex, pos) => {
     const label = document.createElement('label');
     label.className = 'choice';
-    label.innerHTML = `<input type="radio" name="choice" value="${i}"> ${letters[i]}. ${choice}`;
+    label.innerHTML = `<input type="radio" name="choice" value="${pos}"> ${letters[pos]}. ${esc(q.choices[origIndex])}`;
     choicesEl.appendChild(label);
   });
 
@@ -685,8 +691,8 @@ answerBtn.addEventListener('click', () => {
   domainStats[q.domain] = domainStats[q.domain] || { correct: 0, total: 0 };
   domainStats[q.domain].total++;
 
-  labels[q.correct].classList.add('correct');
-  const isCorrect = selected === q.correct;
+  labels[currentCorrectPos].classList.add('correct');
+  const isCorrect = selected === currentCorrectPos;
   const caption = DIAGRAM_CAPTIONS[q.diagram] || '';
   const diagramNote = caption
     ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">🖼 <strong>図解でおさらい:</strong> ${esc(caption)}（上の図も参照してください）</div>`
@@ -700,7 +706,7 @@ answerBtn.addEventListener('click', () => {
     labels[selected].classList.add('wrong');
     missed.push(q);
     feedbackEl.className = 'feedback wrong';
-    feedbackEl.innerHTML = `<strong>❌ 不正解。正解は ${['A','B','C','D'][q.correct]} です。</strong><br>${esc(q.explanation)}${diagramNote}`;
+    feedbackEl.innerHTML = `<strong>❌ 不正解。正解は ${['A','B','C','D'][currentCorrectPos]} です。</strong><br>${esc(q.explanation)}${diagramNote}`;
   }
 
   answerBtn.disabled = true;
