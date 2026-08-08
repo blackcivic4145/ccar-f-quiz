@@ -56,6 +56,9 @@
 </div>
 
 <div id="questionCard" class="card hidden">
+  <div>
+    <button type="button" id="backToResultsBtn" class="hidden">← 結果に戻る</button>
+  </div>
   <div class="progress" id="progress"></div>
   <div class="domain" id="domainLabel"></div>
   <div class="progress" id="timerLabel" style="font-weight:bold;"></div>
@@ -800,6 +803,8 @@ const DOMAIN_RATIO = {
   "コンテキスト管理・信頼性": 15
 };
 const TIME_LIMIT_SECONDS = 120 * 60; // 120分
+const MAX_SCORE = 1000;
+const PASS_SCORE = 720;
 
 let LANG = 'ja';
 
@@ -822,13 +827,17 @@ const STRINGS = {
     diagramNote: (caption) => `🖼 図解でおさらい: ${caption}`,
     timeUpAlert: "制限時間（120分）に達したため、試験を自動終了します。",
     titleFlash: "⏰ 時間切れ！ - ",
-    resultSummary: (correct, total, pct) => `結果: ${correct} / ${total} 正解 (${pct}%)`,
+    resultSummary: (correct, total, score, passed) =>
+      `結果: ${correct} / ${total} 正解　｜　${score} / ${MAX_SCORE}点（合格ライン: ${PASS_SCORE}点）　${passed ? '✅ 合格' : '❌ 不合格'}`,
     domainStatsHeader: "【分野別成績】",
     missedHeader: "【誤答・未回答だった問題】",
     allCorrect: "全問正解です！",
     correctAnswerLabel: "正解: ",
     retryBtn: "もう一度挑戦する",
-    hintBtn: "💡 図解のヒントを見る"
+    hintBtn: "💡 図解のヒントを見る",
+    reviewBtn: "この問題を復習する",
+    backToResultsBtn: "← 結果に戻る",
+    reviewProgress: "復習モード"
   },
   en: {
     pageTitle: "CCAR-F (Claude Certified Architect - Foundations) Practice Quiz",
@@ -848,13 +857,17 @@ const STRINGS = {
     diagramNote: (caption) => `🖼 Diagram recap: ${caption}`,
     timeUpAlert: "Time's up (120 minutes) — the exam has been graded automatically.",
     titleFlash: "⏰ Time's up! - ",
-    resultSummary: (correct, total, pct) => `Result: ${correct} / ${total} correct (${pct}%)`,
+    resultSummary: (correct, total, score, passed) =>
+      `Result: ${correct} / ${total} correct　｜　${score} / ${MAX_SCORE} points (passing: ${PASS_SCORE})　${passed ? '✅ Pass' : '❌ Fail'}`,
     domainStatsHeader: "Score by domain",
     missedHeader: "Missed / unanswered questions",
     allCorrect: "All correct!",
     correctAnswerLabel: "Correct answer: ",
     retryBtn: "Try again",
-    hintBtn: "💡 Show diagram hint"
+    hintBtn: "💡 Show diagram hint",
+    reviewBtn: "Review this question",
+    backToResultsBtn: "← Back to results",
+    reviewProgress: "Review mode"
   }
 };
 
@@ -873,6 +886,7 @@ function applyStaticStrings() {
   document.getElementById('nextBtn').textContent = t().nextBtn;
   document.getElementById('retryBtn').textContent = t().retryBtn;
   document.getElementById('hintBtn').textContent = t().hintBtn;
+  document.getElementById('backToResultsBtn').textContent = t().backToResultsBtn;
   document.getElementById('langJaBtn').classList.toggle('active', LANG === 'ja');
   document.getElementById('langEnBtn').classList.toggle('active', LANG === 'en');
   document.documentElement.lang = LANG;
@@ -902,6 +916,11 @@ let examFinished = false;
 let remainingSeconds = TIME_LIMIT_SECONDS;
 let timerHandle = null;
 
+// 結果画面から個別の問題を復習する際のモード。復習中はsession/currentIndexではなく
+// reviewIdx（QUESTIONS_JAへの元インデックス）を参照し、採点結果には一切影響しない。
+let reviewMode = false;
+let reviewIdx = null;
+
 const startCard = document.getElementById('startCard');
 const questionCard = document.getElementById('questionCard');
 const resultCard = document.getElementById('resultCard');
@@ -911,9 +930,15 @@ const feedbackEl = document.getElementById('feedback');
 const timerLabelEl = document.getElementById('timerLabel');
 const hintBtn = document.getElementById('hintBtn');
 const diagramBoxEl = document.getElementById('diagramBox');
+const backToResultsBtn = document.getElementById('backToResultsBtn');
 
 function getQ(idx) {
   return (LANG === 'en' && QUESTIONS_EN[idx]) ? QUESTIONS_EN[idx] : QUESTIONS_JA[idx];
+}
+
+// 現在表示中の問題の、QUESTIONS_JAに対する元インデックス
+function activeIdx() {
+  return reviewMode ? reviewIdx : session[currentIndex];
 }
 
 function shuffle(arr) {
@@ -1065,8 +1090,8 @@ let currentOrder = []; // 表示位置(0-3) -> 元のchoices配列インデッ�
 let currentCorrectPos = 0; // 今表示している並びでの正解位置
 
 function renderChoices() {
-  const qJA = QUESTIONS_JA[session[currentIndex]];
-  const q = getQ(session[currentIndex]);
+  const qJA = QUESTIONS_JA[activeIdx()];
+  const q = getQ(activeIdx());
   const choicesEl = document.getElementById('choices');
   choicesEl.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
@@ -1087,7 +1112,7 @@ function renderChoices() {
 // 回答解説（ヘッダー・解説文・図解キャプション）は、問題文の表示言語(LANG)に関わらず常に日本語で表示する。
 // 専門用語（MCP, hooksなど）は元の日本語解説内で英語表記のまま残る。
 function buildFeedbackHtml(isCorrect, correctLetter) {
-  const qJA = QUESTIONS_JA[session[currentIndex]];
+  const qJA = QUESTIONS_JA[activeIdx()];
   const caption = diagramCaptions()[qJA.diagram] || '';
   const diagramNote = caption
     ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">${esc(STRINGS.ja.diagramNote(caption))}</div>`
@@ -1111,7 +1136,7 @@ function renderFeedback() {
 // 回答済み、またはヒントボタンが押された場合にのみ図解を表示する。
 // それ以外は「ヒントを見る」ボタンだけを出しておく（図解があるドメインのみ）。
 function updateDiagramVisibility() {
-  const qJA = QUESTIONS_JA[session[currentIndex]];
+  const qJA = QUESTIONS_JA[activeIdx()];
   const hasDiagram = !!(qJA.diagram && DIAGRAM_BUILDERS[qJA.diagram]);
 
   if (answered || hintShown) {
@@ -1136,13 +1161,19 @@ hintBtn.addEventListener('click', () => {
 });
 
 function showQuestion(preserveState) {
-  const idx = session[currentIndex];
+  const idx = activeIdx();
   const qJA = QUESTIONS_JA[idx];
   const q = getQ(idx);
 
-  document.getElementById('progress').textContent = t().progress(currentIndex + 1, session.length);
+  backToResultsBtn.classList.toggle('hidden', !reviewMode);
+  if (reviewMode) {
+    document.getElementById('progress').textContent = t().reviewProgress;
+  } else {
+    document.getElementById('progress').textContent = t().progress(currentIndex + 1, session.length);
+  }
   document.getElementById('domainLabel').textContent = t().domainPrefix + domainLabel(qJA.domain);
-  document.getElementById('qtext').textContent = `${currentIndex + 1}. ${q.text}`;
+  timerLabelEl.classList.toggle('hidden', reviewMode);
+  document.getElementById('qtext').textContent = `${reviewMode ? '' : (currentIndex + 1) + '. '}${q.text}`;
 
   if (!preserveState) {
     answered = false;
@@ -1157,10 +1188,12 @@ function showQuestion(preserveState) {
   updateDiagramVisibility();
   answerBtn.disabled = answered;
   nextBtn.disabled = !answered;
+  nextBtn.textContent = reviewMode ? t().backToResultsBtn : t().nextBtn;
 }
 
 answerBtn.addEventListener('click', () => {
-  if (answered || examFinished) return;
+  if (answered) return;
+  if (!reviewMode && examFinished) return;
   const selectedInput = document.querySelector('input[name="choice"]:checked');
   if (!selectedInput) {
     alert(t().selectOneAlert);
@@ -1168,6 +1201,16 @@ answerBtn.addEventListener('click', () => {
   }
   answered = true;
   selectedPos = parseInt(selectedInput.value, 10);
+
+  if (reviewMode) {
+    renderChoices();
+    renderFeedback();
+    updateDiagramVisibility();
+    answerBtn.disabled = true;
+    nextBtn.disabled = false;
+    return;
+  }
+
   const idx = session[currentIndex];
   const domain = QUESTIONS_JA[idx].domain;
 
@@ -1191,6 +1234,10 @@ answerBtn.addEventListener('click', () => {
 });
 
 nextBtn.addEventListener('click', () => {
+  if (reviewMode) {
+    exitReview();
+    return;
+  }
   if (examFinished) return;
   currentIndex++;
   if (currentIndex >= session.length) {
@@ -1201,6 +1248,27 @@ nextBtn.addEventListener('click', () => {
   }
 });
 
+backToResultsBtn.addEventListener('click', () => {
+  if (reviewMode) exitReview();
+});
+
+// 結果画面から特定の問題を復習する（採点結果には影響しない）
+function startReview(idx) {
+  reviewMode = true;
+  reviewIdx = idx;
+  resultCard.classList.add('hidden');
+  questionCard.classList.remove('hidden');
+  showQuestion();
+}
+
+function exitReview() {
+  reviewMode = false;
+  reviewIdx = null;
+  questionCard.classList.add('hidden');
+  resultCard.classList.remove('hidden');
+  showResult(true);
+}
+
 function showResult(preserveState) {
   examFinished = true;
   stopTimer();
@@ -1208,8 +1276,11 @@ function showResult(preserveState) {
   resultCard.classList.remove('hidden');
 
   const total = session.length;
-  const pct = total === 0 ? 0 : (100 * correctCount / total).toFixed(1);
-  document.getElementById('resultSummary').textContent = t().resultSummary(correctCount, total, pct);
+  const score = total === 0 ? 0 : Math.round((correctCount / total) * MAX_SCORE);
+  const passed = score >= PASS_SCORE;
+  const summaryEl = document.getElementById('resultSummary');
+  summaryEl.textContent = t().resultSummary(correctCount, total, score, passed);
+  summaryEl.style.color = passed ? '#1a7a3a' : '#c0392b';
 
   const statsEl = document.getElementById('domainStats');
   let statsHtml = `<p><strong>${esc(t().domainStatsHeader)}</strong></p>`;
@@ -1226,11 +1297,20 @@ function showResult(preserveState) {
     missed.forEach(idx => {
       const qJA = QUESTIONS_JA[idx];
       const q = getQ(idx);
-      html += `<div class="item">${esc(q.text)}<br><span style="color:#34a853;">${esc(t().correctAnswerLabel)}${esc(q.choices[qJA.correct])}</span></div>`;
+      html += `<div class="item">${esc(q.text)}<br>` +
+        `<span style="color:#34a853;">${esc(t().correctAnswerLabel)}${esc(q.choices[qJA.correct])}</span><br>` +
+        `<button type="button" class="review-btn" data-idx="${idx}" style="margin-top:6px; padding:5px 10px; font-size:0.85em;">${esc(t().reviewBtn)}</button>` +
+        `</div>`;
     });
     missedEl.innerHTML = html;
   }
 }
+
+document.getElementById('missedList').addEventListener('click', (e) => {
+  const btn = e.target.closest('.review-btn');
+  if (!btn) return;
+  startReview(parseInt(btn.dataset.idx, 10));
+});
 
 document.getElementById('retryBtn').addEventListener('click', () => {
   resultCard.classList.add('hidden');
