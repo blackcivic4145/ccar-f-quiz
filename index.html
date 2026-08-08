@@ -39,8 +39,9 @@
 <div class="titlebar">
   <h1 id="pageTitle">CCAR-F (Claude Certified Architect - Foundations) 模擬問題集</h1>
   <div class="lang-switch">
-    <button type="button" id="langJaBtn" class="active">日本語</button>
-    <button type="button" id="langEnBtn">English</button>
+    <button type="button" id="modeJaOnlyBtn">日本語</button>
+    <button type="button" id="modeBilingualJaBtn" class="active">日本語/英語版</button>
+    <button type="button" id="modeEnBtn">English</button>
   </div>
 </div>
 
@@ -48,11 +49,6 @@
   <p id="introText">全 <span id="totalCount"></span> 問収録。出題数を選んで開始してください（各Domainの出題比率を維持したままRandom抽出されます）。</p>
   <p id="scopeText" style="color:#666; font-size:0.9em;"></p>
   <p id="timeLimitText" style="color:#666; font-size:0.9em;"></p>
-  <div class="row" style="align-items:flex-start; flex-direction:column; gap:6px;">
-    <div style="font-weight:bold;">問題セットを選択:</div>
-    <label style="font-weight:normal;"><input type="radio" name="contentMode" value="bilingual" checked> 日本語/英語版（English切替可、専門用語は英単語表記）</label>
-    <label style="font-weight:normal;"><input type="radio" name="contentMode" value="ja_only"> 全部日本語版（英単語混在なし、日本語のみ）</label>
-  </div>
   <div class="row">
     <label for="countInput" id="countLabel">出題数:</label>
     <input type="number" id="countInput" min="1" value="60">
@@ -1124,13 +1120,24 @@ function applyStaticStrings() {
   document.getElementById('retryBtn').textContent = t().retryBtn;
   document.getElementById('hintBtn').textContent = CONTENT_MODE === 'ja_only' ? "💡 図解のヒントを見る" : t().hintBtn;
   document.getElementById('backToResultsBtn').textContent = t().backToResultsBtn;
-  document.getElementById('langJaBtn').classList.toggle('active', LANG === 'ja');
-  document.getElementById('langEnBtn').classList.toggle('active', LANG === 'en');
+  document.getElementById('modeJaOnlyBtn').classList.toggle('active', CONTENT_MODE === 'ja_only');
+  document.getElementById('modeBilingualJaBtn').classList.toggle('active', CONTENT_MODE === 'bilingual' && LANG === 'ja');
+  document.getElementById('modeEnBtn').classList.toggle('active', CONTENT_MODE === 'bilingual' && LANG === 'en');
   document.documentElement.lang = LANG;
 }
 
-function setLang(lang) {
-  LANG = lang;
+// mode: 'ja_only'（全部日本語版） | 'bilingual_ja'（日本語/英語版・日本語表示） | 'bilingual_en'（日本語/英語版・英語表示）
+function selectMode(mode) {
+  if (mode === 'ja_only') {
+    CONTENT_MODE = 'ja_only';
+    LANG = 'ja';
+  } else if (mode === 'bilingual_en') {
+    CONTENT_MODE = 'bilingual';
+    LANG = 'en';
+  } else {
+    CONTENT_MODE = 'bilingual';
+    LANG = 'ja';
+  }
   applyStaticStrings();
   if (!questionCard.classList.contains('hidden')) {
     showQuestion(true);
@@ -1168,7 +1175,6 @@ const timerLabelEl = document.getElementById('timerLabel');
 const hintBtn = document.getElementById('hintBtn');
 const diagramBoxEl = document.getElementById('diagramBox');
 const backToResultsBtn = document.getElementById('backToResultsBtn');
-const langSwitchEl = document.querySelector('.lang-switch');
 
 function getQ(idx) {
   if (CONTENT_MODE === 'ja_only') return QUESTIONS_JA_FULL[idx];
@@ -1250,24 +1256,7 @@ function selectExamQuestions(count) {
   return shuffle(result);
 }
 
-function applyContentMode() {
-  const selected = document.querySelector('input[name="contentMode"]:checked');
-  CONTENT_MODE = selected ? selected.value : 'bilingual';
-  if (CONTENT_MODE === 'ja_only') {
-    LANG = 'ja';
-    langSwitchEl.style.display = 'none';
-  } else {
-    langSwitchEl.style.display = 'flex';
-  }
-  applyStaticStrings();
-}
-
-document.querySelectorAll('input[name="contentMode"]').forEach(r => {
-  r.addEventListener('change', applyContentMode);
-});
-
 document.getElementById('startBtn').addEventListener('click', () => {
-  applyContentMode();
   let count = parseInt(document.getElementById('countInput').value, 10);
   if (!count || count < 1) count = 1;
   if (count > QUESTIONS_JA.length) count = QUESTIONS_JA.length;
@@ -1578,10 +1567,11 @@ document.getElementById('retryBtn').addEventListener('click', () => {
   startCard.classList.remove('hidden');
 });
 
-document.getElementById('langJaBtn').addEventListener('click', () => setLang('ja'));
-document.getElementById('langEnBtn').addEventListener('click', () => setLang('en'));
+document.getElementById('modeJaOnlyBtn').addEventListener('click', () => selectMode('ja_only'));
+document.getElementById('modeBilingualJaBtn').addEventListener('click', () => selectMode('bilingual_ja'));
+document.getElementById('modeEnBtn').addEventListener('click', () => selectMode('bilingual_en'));
 
-applyContentMode();
+applyStaticStrings();
 </script>
 </body>
 </html>
