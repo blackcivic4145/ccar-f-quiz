@@ -49,6 +49,15 @@
     border: none; padding: 0; font: inherit; cursor: pointer; text-decoration: underline;
   }
   #selectionPopup .selection-close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: #999; font-size: 0.95em; }
+  #selectionPopup .selection-add-btn {
+    display: block; margin-top: 10px; padding: 6px 10px; font-size: 0.85em;
+    background: #eef4ff; color: #1a73e8; border: 1px solid #b8d0ff; border-radius: 6px; cursor: pointer;
+  }
+  #selectionPopup .selection-add-btn:disabled { opacity: 0.6; cursor: default; }
+  #myGlossaryBtn { position: relative; }
+  #myGlossaryCount { display: inline-block; margin-left: 4px; background: #ea4335; color: #fff; border-radius: 10px; padding: 0 6px; font-size: 0.75em; }
+  .my-glossary-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 6px; }
+  .my-glossary-item .my-glossary-remove { flex-shrink: 0; padding: 4px 8px; font-size: 0.8em; }
 </style>
 </head>
 <body>
@@ -57,6 +66,7 @@
   <h1 id="pageTitle">CCAR-F (Claude Certified Architect - Foundations) 模擬問題集</h1>
   <div class="lang-switch">
     <button type="button" id="glossaryBtn">📖 用語集</button>
+    <button type="button" id="myGlossaryBtn">📓 My用語集<span id="myGlossaryCount" class="hidden"></span></button>
     <button type="button" id="modeJaOnlyBtn">日本語</button>
     <button type="button" id="modeBilingualJaBtn" class="active">日本語/英語版</button>
     <button type="button" id="modeEnBtn">English</button>
@@ -64,6 +74,18 @@
 </div>
 
 <div id="selectionPopup" class="hidden"></div>
+
+<div id="myGlossaryCard" class="card hidden">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <h2 style="margin:0; font-size:1.1em;">📓 My用語集</h2>
+    <div>
+      <button type="button" id="myGlossaryClearBtn">🗑 全て削除</button>
+      <button type="button" id="myGlossaryBackBtn">← 戻る</button>
+    </div>
+  </div>
+  <p style="color:#666; font-size:0.9em;">問題文・選択肢・解説文・用語集の中で単語をドラッグ選択し、「➕ 個人用語集に追加」を押すとここに保存されます（このブラウザにのみ保存されます）。</p>
+  <div id="myGlossaryItems" style="line-height:1.7;"></div>
+</div>
 
 <div id="glossaryCard" class="card hidden">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -1197,6 +1219,7 @@ const startCard = document.getElementById('startCard');
 const questionCard = document.getElementById('questionCard');
 const resultCard = document.getElementById('resultCard');
 const glossaryCard = document.getElementById('glossaryCard');
+const myGlossaryCard = document.getElementById('myGlossaryCard');
 const answerBtn = document.getElementById('answerBtn');
 const nextBtn = document.getElementById('nextBtn');
 const feedbackEl = document.getElementById('feedback');
@@ -1660,6 +1683,7 @@ function showGlossary(targetId) {
   startCard.classList.add('hidden');
   questionCard.classList.add('hidden');
   resultCard.classList.add('hidden');
+  myGlossaryCard.classList.add('hidden');
   renderGlossary();
   glossaryCard.classList.remove('hidden');
   if (targetId) {
@@ -1781,6 +1805,10 @@ function fetchWikipediaSummary(text) {
     .catch(() => null);
 }
 
+// ポップアップに現在表示している内容（個人用語集への追加ボタンが参照する）
+let currentSelectionResult = null;
+const ADD_BTN_HTML = '<button type="button" class="selection-add-btn">➕ 個人用語集に追加</button>';
+
 function showSelectionPopup(selection, text) {
   const match = findGlossaryMatchFromSelection(selection, text);
   let range;
@@ -1803,7 +1831,8 @@ function showSelectionPopup(selection, text) {
   if (match) {
     const kanaLabel = match.kana ? `<span class="selection-kana">（${esc(match.kana)}）</span>` : '';
     html += `<div class="selection-term">${esc(match.term)}${kanaLabel}</div><div class="selection-body">${esc(match.ja)}</div>`;
-    html += buildSearchButtonHtml(text);
+    html += buildSearchButtonHtml(text) + ADD_BTN_HTML;
+    currentSelectionResult = { selectedText: text, term: match.term, explanation: match.ja, source: 'glossary', pageUrl: null };
     selectionPopup.innerHTML = html;
     selectionPopup.classList.remove('hidden');
     positionPopup();
@@ -1813,6 +1842,7 @@ function showSelectionPopup(selection, text) {
   // 用語集に一致がない場合は、まず「検索中」を表示しつつWikipediaの概要取得を試みる
   const myToken = ++selectionRequestToken;
   html += `<div class="selection-term">${esc(text)}</div><div class="selection-body" style="color:#888;">🔎 Wikipediaで検索中…</div>`;
+  currentSelectionResult = { selectedText: text, term: text, explanation: null, source: 'pending', pageUrl: null };
   selectionPopup.innerHTML = html;
   selectionPopup.classList.remove('hidden');
   positionPopup();
@@ -1833,11 +1863,13 @@ function showSelectionPopup(selection, text) {
         `<div class="selection-term">${esc(result.title)}</div>` +
         `<div class="selection-body">${esc(result.extract)}</div>` +
         `<div style="color:#aaa; font-size:0.8em; margin-top:4px;">出典: Wikipedia（CC BY-SA）</div>` +
-        wikiLink + buildSearchButtonHtml(text);
+        wikiLink + buildSearchButtonHtml(text) + ADD_BTN_HTML;
+      currentSelectionResult = { selectedText: text, term: result.title, explanation: result.extract, source: 'wikipedia', pageUrl: result.pageUrl || null };
     } else {
       bodyHtml = `<div class="selection-term">${esc(text)}</div>` +
         `<div class="selection-body" style="color:#888;">用語集にもWikipediaにも見つかりませんでした。</div>` +
-        buildSearchButtonHtml(text);
+        buildSearchButtonHtml(text) + ADD_BTN_HTML;
+      currentSelectionResult = { selectedText: text, term: text, explanation: null, source: 'none', pageUrl: null };
     }
     selectionPopup.innerHTML = '<span class="selection-close">✕</span>' + bodyHtml;
     positionPopup();
@@ -1872,8 +1904,150 @@ selectionPopup.addEventListener('click', (e) => {
     // aタグのtarget="_blank"に頼らず、明示的にwindow.openで新しいタブに開く。
     // これでこのページ自体が検索結果に遷移してしまうことがない。
     window.open(searchBtn.dataset.searchUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const addBtn = e.target.closest('.selection-add-btn');
+  if (addBtn) {
+    addToMyGlossary();
+    addBtn.textContent = '✓ 追加しました';
+    addBtn.disabled = true;
   }
 });
+
+// ---- 個人用語集（このブラウザにのみ保存。ドラッグ選択→「➕ 個人用語集に追加」で登録） ----
+const MY_GLOSSARY_KEY = 'ccarf_my_glossary_v1';
+
+function loadMyGlossary() {
+  try {
+    const raw = localStorage.getItem(MY_GLOSSARY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveMyGlossary(list) {
+  try { localStorage.setItem(MY_GLOSSARY_KEY, JSON.stringify(list)); } catch (e) { /* ignore (private browsing等) */ }
+}
+
+function updateMyGlossaryCount() {
+  const count = loadMyGlossary().length;
+  const el = document.getElementById('myGlossaryCount');
+  if (count > 0) {
+    el.textContent = count;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+function addToMyGlossary() {
+  if (!currentSelectionResult) return;
+  const list = loadMyGlossary();
+  const key = currentSelectionResult.selectedText.trim();
+  if (!key) return;
+  const entry = {
+    term: key,
+    resolvedTitle: currentSelectionResult.term,
+    explanation: currentSelectionResult.explanation,
+    source: currentSelectionResult.source,
+    pageUrl: currentSelectionResult.pageUrl,
+    addedAt: Date.now()
+  };
+  const idx = list.findIndex(e => e.term === key);
+  if (idx >= 0) list[idx] = entry; else list.unshift(entry);
+  saveMyGlossary(list);
+  updateMyGlossaryCount();
+
+  // 説明がまだ取得できていない場合（Wikipedia検索中に押した等）は、裏で改めて取得しておく
+  if (entry.explanation === null && entry.source !== 'glossary') {
+    fetchWikipediaSummary(key).then(result => {
+      const latest = loadMyGlossary();
+      const i = latest.findIndex(e => e.term === key);
+      if (i < 0) return;
+      if (result) {
+        latest[i].resolvedTitle = result.title;
+        latest[i].explanation = result.extract;
+        latest[i].source = 'wikipedia';
+        latest[i].pageUrl = result.pageUrl || null;
+      } else {
+        latest[i].explanation = '';
+      }
+      saveMyGlossary(latest);
+      if (!myGlossaryCard.classList.contains('hidden')) renderMyGlossary();
+    });
+  }
+}
+
+function renderMyGlossary() {
+  const list = loadMyGlossary();
+  const container = document.getElementById('myGlossaryItems');
+  if (list.length === 0) {
+    container.innerHTML = '<p style="color:#888;">まだ何も保存されていません。問題文などの単語をドラッグ選択して追加してください。</p>';
+    return;
+  }
+  let html = '';
+  list.forEach(entry => {
+    let bodyText;
+    if (entry.explanation === null) bodyText = '🔎 説明を取得中…';
+    else if (entry.explanation === '') bodyText = '説明が見つかりませんでした。';
+    else bodyText = esc(entry.explanation);
+    const titleLine = entry.resolvedTitle && entry.resolvedTitle !== entry.term
+      ? `${esc(entry.term)} <span style="color:#999; font-weight:normal; font-size:0.85em;">（${esc(entry.resolvedTitle)}）</span>`
+      : esc(entry.term);
+    const linkBtn = entry.pageUrl
+      ? `<button type="button" class="selection-search-link" data-search-url="${esc(entry.pageUrl)}" style="margin-top:4px;">Wikipediaで見る ↗</button>`
+      : '';
+    html += `<div class="my-glossary-item">
+      <div style="flex:1;">
+        <div style="font-weight:bold;">${titleLine}</div>
+        <div style="color:#333; margin-top:2px;">${bodyText}</div>
+        ${linkBtn}
+      </div>
+      <button type="button" class="my-glossary-remove" data-term="${esc(entry.term)}">🗑</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+let myGlossaryPrevCard = 'start';
+
+function showMyGlossary() {
+  myGlossaryPrevCard = !startCard.classList.contains('hidden') ? 'start'
+    : (!questionCard.classList.contains('hidden') ? 'question'
+    : (!resultCard.classList.contains('hidden') ? 'result' : myGlossaryPrevCard));
+  startCard.classList.add('hidden');
+  questionCard.classList.add('hidden');
+  resultCard.classList.add('hidden');
+  glossaryCard.classList.add('hidden');
+  renderMyGlossary();
+  myGlossaryCard.classList.remove('hidden');
+}
+
+function hideMyGlossary() {
+  myGlossaryCard.classList.add('hidden');
+  if (myGlossaryPrevCard === 'question') questionCard.classList.remove('hidden');
+  else if (myGlossaryPrevCard === 'result') resultCard.classList.remove('hidden');
+  else startCard.classList.remove('hidden');
+}
+
+document.getElementById('myGlossaryBtn').addEventListener('click', showMyGlossary);
+document.getElementById('myGlossaryBackBtn').addEventListener('click', hideMyGlossary);
+document.getElementById('myGlossaryClearBtn').addEventListener('click', () => {
+  if (!confirm('個人用語集をすべて削除します。よろしいですか？')) return;
+  saveMyGlossary([]);
+  updateMyGlossaryCount();
+  renderMyGlossary();
+});
+document.getElementById('myGlossaryItems').addEventListener('click', (e) => {
+  const removeBtn = e.target.closest('.my-glossary-remove');
+  if (!removeBtn) return;
+  const list = loadMyGlossary().filter(entry => entry.term !== removeBtn.dataset.term);
+  saveMyGlossary(list);
+  updateMyGlossaryCount();
+  renderMyGlossary();
+});
+updateMyGlossaryCount();
 
 applyStaticStrings();
 </script>
