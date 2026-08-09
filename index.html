@@ -36,6 +36,14 @@
   .glossary-term:hover { background: #eef4ff; }
   .glossary-entry { transition: background-color 0.4s ease; }
   .glossary-entry.glossary-highlight { background: #fff3cd; }
+  #selectionPopup {
+    position: absolute; z-index: 1000; max-width: 320px; background: #fff;
+    border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    padding: 10px 12px; font-size: 0.88em; line-height: 1.5;
+  }
+  #selectionPopup .selection-term { font-weight: bold; margin-bottom: 4px; }
+  #selectionPopup .selection-search-link { display: inline-block; margin-top: 6px; color: #1a73e8; }
+  #selectionPopup .selection-close { position: absolute; top: 4px; right: 6px; cursor: pointer; color: #999; font-size: 0.9em; }
 </style>
 </head>
 <body>
@@ -49,6 +57,8 @@
     <button type="button" id="modeEnBtn">English</button>
   </div>
 </div>
+
+<div id="selectionPopup" class="hidden"></div>
 
 <div id="glossaryCard" class="card hidden">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -1711,6 +1721,82 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
   showGlossary(el.dataset.term);
+});
+
+// ---- テキストをドラッグ選択すると、その場で用語の説明をポップアップ表示する ----
+const selectionPopup = document.getElementById('selectionPopup');
+const SELECTION_CONTAINERS = '.qtext, #choices, #feedback, #glossaryList, #diagramBox';
+
+function findGlossaryMatchFromSelection(selection, text) {
+  const anchorEl = selection.anchorNode
+    ? (selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentElement : selection.anchorNode)
+    : null;
+  const spanEl = anchorEl && anchorEl.closest ? anchorEl.closest('.glossary-term') : null;
+  if (spanEl) {
+    const found = GLOSSARY.find(g => g.id === spanEl.dataset.term);
+    if (found) return found;
+  }
+  const lower = text.toLowerCase();
+  return GLOSSARY.find(g =>
+    g.keywords.some(k => k.toLowerCase() === lower) ||
+    (g.kana && g.kana.includes(text))
+  ) || null;
+}
+
+function hideSelectionPopup() {
+  selectionPopup.classList.add('hidden');
+  selectionPopup.innerHTML = '';
+}
+
+function showSelectionPopup(selection, text) {
+  const match = findGlossaryMatchFromSelection(selection, text);
+  let range;
+  try { range = selection.getRangeAt(0); } catch (err) { return; }
+  const rect = range.getBoundingClientRect();
+  if (!rect || (rect.width === 0 && rect.height === 0)) return;
+
+  let html = '<span class="selection-close">✕</span>';
+  if (match) {
+    const kanaLabel = match.kana ? `（${esc(match.kana)}）` : '';
+    html += `<div class="selection-term">${esc(match.term)}${kanaLabel}</div><div>${esc(match.ja)}</div>`;
+  } else {
+    html += `<div class="selection-term">${esc(text)}</div><div style="color:#666;">用語集には見つかりませんでした。</div>`;
+  }
+  const query = encodeURIComponent(text + ' Claude Code');
+  html += `<a class="selection-search-link" href="https://www.google.com/search?q=${query}" target="_blank" rel="noopener noreferrer">🔍 Web検索で調べる ↗</a>`;
+  selectionPopup.innerHTML = html;
+  selectionPopup.classList.remove('hidden');
+
+  selectionPopup.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+  selectionPopup.style.left = (window.scrollX + rect.left) + 'px';
+  requestAnimationFrame(() => {
+    const popupRect = selectionPopup.getBoundingClientRect();
+    if (popupRect.right > window.innerWidth - 8) {
+      selectionPopup.style.left = Math.max(8, window.scrollX + window.innerWidth - popupRect.width - 8) + 'px';
+    }
+  });
+}
+
+document.addEventListener('mouseup', (e) => {
+  if (e.target.closest('#selectionPopup')) return;
+  setTimeout(() => {
+    const sel = window.getSelection();
+    const text = sel.toString().trim();
+    if (!text || text.length > 60) { hideSelectionPopup(); return; }
+    const anchorEl = sel.anchorNode
+      ? (sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode)
+      : null;
+    if (!anchorEl || !anchorEl.closest(SELECTION_CONTAINERS)) { hideSelectionPopup(); return; }
+    showSelectionPopup(sel, text);
+  }, 0);
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (!e.target.closest('#selectionPopup')) hideSelectionPopup();
+});
+
+selectionPopup.addEventListener('click', (e) => {
+  if (e.target.classList.contains('selection-close')) hideSelectionPopup();
 });
 
 applyStaticStrings();
