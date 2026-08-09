@@ -78,7 +78,7 @@
     <button type="button" id="modeJaOnlyBtn">日本語</button>
     <button type="button" id="modeBilingualJaBtn" class="active">日本語/英語版</button>
     <button type="button" id="modeEnBtn">English</button>
-    <button type="button" id="helpBtn">❓ 使い方</button>
+    <button type="button" id="helpBtn">📘 取扱説明書</button>
   </div>
 </div>
 
@@ -86,9 +86,58 @@
 
 <div id="helpCard" class="card hidden">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-    <h2 style="margin:0; font-size:1.1em;">❓ 用語集の使い方</h2>
+    <h2 style="margin:0; font-size:1.1em;">📘 CCAR-F 模擬問題集 取扱説明書</h2>
     <button type="button" id="helpBackBtn">← 戻る</button>
   </div>
+
+  <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">▶️ 出題〜開始</h3>
+  <p style="color:#555; font-size:0.92em; margin-top:0;">開始画面で出題数を選んで「開始する」を押すと、各分野の出題比率（27% / 20% / 20% / 18% / 15%）を維持したままランダムに問題が抽出されます。</p>
+  <div class="howto-flow">
+    <div class="howto-step"><div class="howto-icon">🔢</div><div class="howto-label">出題数を<br>入力</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">▶️</div><div class="howto-label">「開始する」<br>を押す</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">⏱️</div><div class="howto-label">制限時間120分の<br>カウント開始</div></div>
+  </div>
+  <p style="color:#555; font-size:0.92em;">制限時間を超過すると自動的に採点され、ウィンドウが前面に表示されます。</p>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+
+  <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">✏️ 回答の流れ</h3>
+  <p style="color:#555; font-size:0.92em; margin-top:0;">選択肢を選んで回答すると、正誤・解説に加えて、その問題のパターンを表す図解が自動で表示されます。回答前でも「💡 図解のHintを見る」ボタンでヒントとして確認できます。</p>
+  <div class="howto-flow">
+    <div class="howto-step"><div class="howto-icon">🔘</div><div class="howto-label">選択肢を<br>選ぶ</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">✅</div><div class="howto-label">「回答する」<br>を押す</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">📊</div><div class="howto-label">正誤・解説・<br>図解が表示</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">➡️</div><div class="howto-label">「次へ」で<br>次の問題</div></div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+
+  <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">🏆 採点・結果・復習</h3>
+  <p style="color:#555; font-size:0.92em; margin-top:0;">全問回答すると結果画面に移り、1000点満点・合格ライン720点で採点されます。誤答・未回答だった問題は一覧表示され、「この問題を復習する」ボタンで採点結果に影響を与えずに個別に見直せます。</p>
+  <div class="howto-flow">
+    <div class="howto-step"><div class="howto-icon">🏁</div><div class="howto-label">全問回答<br>で結果表示</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">💯</div><div class="howto-label">1000点満点<br>720点で合格</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">🔁</div><div class="howto-label">「復習する」で<br>個別に見直し</div></div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+
+  <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">🌐 表示モード</h3>
+  <p style="color:#555; font-size:0.92em; margin-top:0;">ヘッダーのボタンでいつでも切り替えられます。「日本語」は完全な日本語表記、「日本語/英語版」は専門用語を英単語表記にした日本語（既定）、「English」はすべて英語表記です。回答解説は表示モードに関わらず常に日本語で表示されます。</p>
+  <div class="howto-flow">
+    <div class="howto-step"><div class="howto-icon">🇯🇵</div><div class="howto-label">日本語<br>（完全日本語）</div></div>
+    <div class="howto-step"><div class="howto-icon">🀄</div><div class="howto-label">日本語/英語版<br>（既定）</div></div>
+    <div class="howto-step"><div class="howto-icon">🇺🇸</div><div class="howto-label">English<br>（全て英語）</div></div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
 
   <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">📖 用語集</h3>
   <p style="color:#555; font-size:0.92em; margin-top:0;">問題文・選択肢・解説文の中の<span class="glossary-term" style="pointer-events:none;">下線付きの単語</span>をクリックすると、用語集の該当項目にジャンプします。</p>
