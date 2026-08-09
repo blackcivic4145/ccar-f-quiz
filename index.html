@@ -37,16 +37,18 @@
   .glossary-entry { transition: background-color 0.4s ease; }
   .glossary-entry.glossary-highlight { background: #fff3cd; }
   #selectionPopup {
-    position: absolute; z-index: 1000; max-width: 320px; background: #fff;
-    border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-    padding: 10px 12px; font-size: 0.88em; line-height: 1.5;
+    position: absolute; z-index: 1000; width: min(360px, 90vw); background: #fff;
+    border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    padding: 14px 16px; line-height: 1.7;
   }
-  #selectionPopup .selection-term { font-weight: bold; margin-bottom: 4px; }
+  #selectionPopup .selection-term { font-weight: bold; font-size: 1.05em; margin-bottom: 2px; padding-right: 16px; }
+  #selectionPopup .selection-kana { color: #888; font-weight: normal; font-size: 0.9em; }
+  #selectionPopup .selection-body { color: #333; }
   #selectionPopup .selection-search-link {
-    display: inline-block; margin-top: 6px; color: #1a73e8; background: none;
+    display: inline-block; margin-top: 8px; color: #1a73e8; background: none;
     border: none; padding: 0; font: inherit; cursor: pointer; text-decoration: underline;
   }
-  #selectionPopup .selection-close { position: absolute; top: 4px; right: 6px; cursor: pointer; color: #999; font-size: 0.9em; }
+  #selectionPopup .selection-close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: #999; font-size: 0.95em; }
 </style>
 </head>
 <body>
@@ -1760,10 +1762,10 @@ function showSelectionPopup(selection, text) {
 
   let html = '<span class="selection-close">✕</span>';
   if (match) {
-    const kanaLabel = match.kana ? `（${esc(match.kana)}）` : '';
-    html += `<div class="selection-term">${esc(match.term)}${kanaLabel}</div><div>${esc(match.ja)}</div>`;
+    const kanaLabel = match.kana ? `<span class="selection-kana">（${esc(match.kana)}）</span>` : '';
+    html += `<div class="selection-term">${esc(match.term)}${kanaLabel}</div><div class="selection-body">${esc(match.ja)}</div>`;
   } else {
-    html += `<div class="selection-term">${esc(text)}</div><div style="color:#666;">用語集には見つかりませんでした。</div>`;
+    html += `<div class="selection-term">${esc(text)}</div><div class="selection-body" style="color:#888;">用語集には見つかりませんでした。</div>`;
   }
   const query = encodeURIComponent(text + ' Claude Code');
   const searchUrl = `https://www.google.com/search?q=${query}`;
