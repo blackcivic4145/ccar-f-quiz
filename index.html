@@ -58,6 +58,14 @@
   #myGlossaryCount { display: inline-block; margin-left: 4px; background: #ea4335; color: #fff; border-radius: 10px; padding: 0 6px; font-size: 0.75em; }
   .my-glossary-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 6px; }
   .my-glossary-item .my-glossary-remove { flex-shrink: 0; padding: 4px 8px; font-size: 0.8em; }
+  .howto-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0 18px; }
+  .howto-step { display: flex; flex-direction: column; align-items: center; width: 92px; text-align: center; }
+  .howto-icon {
+    width: 48px; height: 48px; border-radius: 50%; background: #eef4ff; border: 1px solid #b8d0ff;
+    display: flex; align-items: center; justify-content: center; font-size: 1.4em; margin-bottom: 6px;
+  }
+  .howto-label { font-size: 0.78em; color: #444; line-height: 1.3; }
+  .howto-arrow { color: #bbb; font-size: 1.3em; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -70,10 +78,47 @@
     <button type="button" id="modeJaOnlyBtn">日本語</button>
     <button type="button" id="modeBilingualJaBtn" class="active">日本語/英語版</button>
     <button type="button" id="modeEnBtn">English</button>
+    <button type="button" id="helpBtn">❓ 使い方</button>
   </div>
 </div>
 
 <div id="selectionPopup" class="hidden"></div>
+
+<div id="helpCard" class="card hidden">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <h2 style="margin:0; font-size:1.1em;">❓ 用語集の使い方</h2>
+    <button type="button" id="helpBackBtn">← 戻る</button>
+  </div>
+
+  <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">📖 用語集</h3>
+  <p style="color:#555; font-size:0.92em; margin-top:0;">問題文・選択肢・解説文の中の<span class="glossary-term" style="pointer-events:none;">下線付きの単語</span>をクリックすると、用語集の該当項目にジャンプします。</p>
+  <div class="howto-flow">
+    <div class="howto-step"><div class="howto-icon">📝</div><div class="howto-label">問題文中の<br>下線付き用語</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">👆</div><div class="howto-label">クリック</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">📖</div><div class="howto-label">用語集の説明に<br>ジャンプ</div></div>
+  </div>
+  <p style="color:#555; font-size:0.92em;">ヘッダーの「📖 用語集」ボタンからも、いつでも全項目の一覧を開けます。</p>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+
+  <h3 style="font-size:1em; color:#1a73e8; margin:0 0 8px;">📓 My用語集</h3>
+  <p style="color:#555; font-size:0.92em; margin-top:0;">下線のない単語でも、ドラッグして選択すると説明が自動で表示され、自分だけの用語集に保存できます。</p>
+  <div class="howto-flow">
+    <div class="howto-step"><div class="howto-icon">🖱️</div><div class="howto-label">単語を<br>ドラッグ選択</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">💬</div><div class="howto-label">説明が<br>自動で表示</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">➕</div><div class="howto-label">「個人用語集に<br>追加」を押す</div></div>
+    <div class="howto-arrow">→</div>
+    <div class="howto-step"><div class="howto-icon">📓</div><div class="howto-label">My用語集に<br>保存される</div></div>
+  </div>
+  <p style="color:#555; font-size:0.92em;">
+    説明は、まず共通の用語集を確認し、なければ<strong>Wikipedia</strong>から自動で取得します（見つからない場合は「🔍 Google検索で調べる」ボタンで自分で調べられます）。<br>
+    My用語集は<strong>このブラウザだけ</strong>に保存され、他の端末やブラウザには引き継がれません。ヘッダーの「📓 My用語集」から一覧・削除ができます。
+  </p>
+</div>
 
 <div id="myGlossaryCard" class="card hidden">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -1220,6 +1265,7 @@ const questionCard = document.getElementById('questionCard');
 const resultCard = document.getElementById('resultCard');
 const glossaryCard = document.getElementById('glossaryCard');
 const myGlossaryCard = document.getElementById('myGlossaryCard');
+const helpCard = document.getElementById('helpCard');
 const answerBtn = document.getElementById('answerBtn');
 const nextBtn = document.getElementById('nextBtn');
 const feedbackEl = document.getElementById('feedback');
@@ -1684,6 +1730,7 @@ function showGlossary(targetId) {
   questionCard.classList.add('hidden');
   resultCard.classList.add('hidden');
   myGlossaryCard.classList.add('hidden');
+  helpCard.classList.add('hidden');
   renderGlossary();
   glossaryCard.classList.remove('hidden');
   if (targetId) {
@@ -2020,9 +2067,34 @@ function showMyGlossary() {
   questionCard.classList.add('hidden');
   resultCard.classList.add('hidden');
   glossaryCard.classList.add('hidden');
+  helpCard.classList.add('hidden');
   renderMyGlossary();
   myGlossaryCard.classList.remove('hidden');
 }
+
+let helpPrevCard = 'start';
+
+function showHelp() {
+  helpPrevCard = !startCard.classList.contains('hidden') ? 'start'
+    : (!questionCard.classList.contains('hidden') ? 'question'
+    : (!resultCard.classList.contains('hidden') ? 'result' : helpPrevCard));
+  startCard.classList.add('hidden');
+  questionCard.classList.add('hidden');
+  resultCard.classList.add('hidden');
+  glossaryCard.classList.add('hidden');
+  myGlossaryCard.classList.add('hidden');
+  helpCard.classList.remove('hidden');
+}
+
+function hideHelp() {
+  helpCard.classList.add('hidden');
+  if (helpPrevCard === 'question') questionCard.classList.remove('hidden');
+  else if (helpPrevCard === 'result') resultCard.classList.remove('hidden');
+  else startCard.classList.remove('hidden');
+}
+
+document.getElementById('helpBtn').addEventListener('click', showHelp);
+document.getElementById('helpBackBtn').addEventListener('click', hideHelp);
 
 function hideMyGlossary() {
   myGlossaryCard.classList.add('hidden');
