@@ -1753,6 +1753,34 @@ function hideSelectionPopup() {
   selectionPopup.innerHTML = '';
 }
 
+function buildSearchButtonHtml(text) {
+  const query = encodeURIComponent(text + ' Claude Code');
+  const searchUrl = `https://www.google.com/search?q=${query}`;
+  return `<button type="button" class="selection-search-link" data-search-url="${searchUrl}">🔍 Google検索で調べる ↗</button>`;
+}
+
+// 用語集にない単語は、Wikipedia日本語版の無料公開API（CORS対応・APIキー不要）で
+// 概要を自動取得して表示する。見つからなければ検索リンクのみを表示する。
+let selectionRequestToken = 0;
+
+function fetchWikipediaSummary(text) {
+  const searchUrl = `https://ja.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(text)}&limit=1&namespace=0&format=json&origin=*`;
+  return fetch(searchUrl)
+    .then(res => res.json())
+    .then(data => {
+      const title = data && data[1] && data[1][0];
+      if (!title) return null;
+      const summaryUrl = `https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+      return fetch(summaryUrl).then(res => res.ok ? res.json() : null);
+    })
+    .then(summary => {
+      if (!summary || !summary.extract) return null;
+      const pageUrl = summary.content_urls && summary.content_urls.desktop && summary.content_urls.desktop.page;
+      return { title: summary.title, extract: summary.extract, pageUrl: pageUrl };
+    })
+    .catch(() => null);
+}
+
 function showSelectionPopup(selection, text) {
   const match = findGlossaryMatchFromSelection(selection, text);
   let range;
@@ -1760,26 +1788,59 @@ function showSelectionPopup(selection, text) {
   const rect = range.getBoundingClientRect();
   if (!rect || (rect.width === 0 && rect.height === 0)) return;
 
+  const positionPopup = () => {
+    selectionPopup.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+    selectionPopup.style.left = (window.scrollX + rect.left) + 'px';
+    requestAnimationFrame(() => {
+      const popupRect = selectionPopup.getBoundingClientRect();
+      if (popupRect.right > window.innerWidth - 8) {
+        selectionPopup.style.left = Math.max(8, window.scrollX + window.innerWidth - popupRect.width - 8) + 'px';
+      }
+    });
+  };
+
   let html = '<span class="selection-close">✕</span>';
   if (match) {
     const kanaLabel = match.kana ? `<span class="selection-kana">（${esc(match.kana)}）</span>` : '';
     html += `<div class="selection-term">${esc(match.term)}${kanaLabel}</div><div class="selection-body">${esc(match.ja)}</div>`;
-  } else {
-    html += `<div class="selection-term">${esc(text)}</div><div class="selection-body" style="color:#888;">用語集には見つかりませんでした。</div>`;
+    html += buildSearchButtonHtml(text);
+    selectionPopup.innerHTML = html;
+    selectionPopup.classList.remove('hidden');
+    positionPopup();
+    return;
   }
-  const query = encodeURIComponent(text + ' Claude Code');
-  const searchUrl = `https://www.google.com/search?q=${query}`;
-  html += `<button type="button" class="selection-search-link" data-search-url="${searchUrl}">🔍 Web検索で調べる ↗</button>`;
+
+  // 用語集に一致がない場合は、まず「検索中」を表示しつつWikipediaの概要取得を試みる
+  const myToken = ++selectionRequestToken;
+  html += `<div class="selection-term">${esc(text)}</div><div class="selection-body" style="color:#888;">🔎 Wikipediaで検索中…</div>`;
   selectionPopup.innerHTML = html;
   selectionPopup.classList.remove('hidden');
+  positionPopup();
 
-  selectionPopup.style.top = (window.scrollY + rect.bottom + 6) + 'px';
-  selectionPopup.style.left = (window.scrollX + rect.left) + 'px';
-  requestAnimationFrame(() => {
-    const popupRect = selectionPopup.getBoundingClientRect();
-    if (popupRect.right > window.innerWidth - 8) {
-      selectionPopup.style.left = Math.max(8, window.scrollX + window.innerWidth - popupRect.width - 8) + 'px';
+  fetchWikipediaSummary(text).then(result => {
+    if (myToken !== selectionRequestToken) return; // その間に別の単語が選択された場合は無視
+    if (selectionPopup.classList.contains('hidden')) return;
+    let bodyHtml;
+    if (result) {
+      const wikiLink = result.pageUrl
+        ? `<button type="button" class="selection-search-link" data-search-url="${esc(result.pageUrl)}">Wikipediaで詳しく見る ↗</button>`
+        : '';
+      // 自動検索のため無関係な記事がヒットすることがある。「もしかして」として明示し、
+      // 選んだ単語自体とは違う項目であることが分かるようにする。
+      const sameAsSelection = result.title.trim() === text.trim();
+      const guessLabel = sameAsSelection ? '' : `<div style="color:#999; font-size:0.8em; margin-bottom:2px;">🔎 Wikipedia自動検索結果（もしかして）</div>`;
+      bodyHtml = guessLabel +
+        `<div class="selection-term">${esc(result.title)}</div>` +
+        `<div class="selection-body">${esc(result.extract)}</div>` +
+        `<div style="color:#aaa; font-size:0.8em; margin-top:4px;">出典: Wikipedia（CC BY-SA）</div>` +
+        wikiLink + buildSearchButtonHtml(text);
+    } else {
+      bodyHtml = `<div class="selection-term">${esc(text)}</div>` +
+        `<div class="selection-body" style="color:#888;">用語集にもWikipediaにも見つかりませんでした。</div>` +
+        buildSearchButtonHtml(text);
     }
+    selectionPopup.innerHTML = '<span class="selection-close">✕</span>' + bodyHtml;
+    positionPopup();
   });
 }
 
