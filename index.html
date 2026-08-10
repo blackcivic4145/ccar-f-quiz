@@ -34,6 +34,8 @@
   .lang-switch button { margin: 0; padding: 6px 12px; font-size: 0.85em; }
   .lang-switch button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
   #diagramBox { margin-top: 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow-x: auto; }
+  .question-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .question-actions-left { display: flex; flex-wrap: wrap; }
   .glossary-term { color: #1a73e8; border-bottom: 1px dotted #1a73e8; cursor: pointer; }
   .glossary-term:hover { background: #eef4ff; }
   .glossary-entry { transition: background-color 0.4s ease; }
@@ -86,9 +88,6 @@
     </div>
     <div class="btn-group">
       <button type="button" id="helpBtn">📘 取扱説明書</button>
-    </div>
-    <div class="btn-group">
-      <button type="button" id="backToTitleBtn">🏠 タイトルに戻る</button>
     </div>
   </div>
 </div>
@@ -229,8 +228,14 @@
   </div>
   <div class="feedback hidden" id="feedback"></div>
   <div id="diagramBox" class="hidden"></div>
-  <button class="primary" id="answerBtn">回答する</button>
-  <button id="nextBtn" disabled>次へ</button>
+  <div class="question-actions">
+    <div class="question-actions-left">
+      <button type="button" id="prevBtn" disabled>← 戻る</button>
+      <button class="primary" id="answerBtn">回答する</button>
+      <button id="nextBtn" disabled>次へ</button>
+    </div>
+    <button type="button" id="backToTitleBtn">🏠 タイトルに戻る</button>
+  </div>
 </div>
 
 <div id="resultCard" class="card hidden">
@@ -1529,7 +1534,10 @@ const STRINGS = {
     hintBtn: "💡 図解のHintを見る",
     reviewBtn: "この問題を復習する",
     backToResultsBtn: "← 結果に戻る",
-    reviewProgress: "復習Mode"
+    reviewProgress: "復習Mode",
+    prevBtn: "← 戻る",
+    backToCurrentBtn: "→ 今の問題に戻る",
+    previewProgress: (i, n) => `問題 ${i} / ${n} を確認中（回答は変更できません）`
   },
   en: {
     pageTitle: "CCAR-F (Claude Certified Architect - Foundations) Practice Quiz",
@@ -1559,7 +1567,10 @@ const STRINGS = {
     hintBtn: "💡 Show diagram hint",
     reviewBtn: "Review this question",
     backToResultsBtn: "← Back to results",
-    reviewProgress: "Review mode"
+    reviewProgress: "Review mode",
+    prevBtn: "← Back",
+    backToCurrentBtn: "→ Back to current question",
+    previewProgress: (i, n) => `Viewing question ${i} / ${n} (read-only)`
   }
 };
 
@@ -1579,6 +1590,7 @@ function applyStaticStrings() {
   document.getElementById('retryBtn').textContent = t().retryBtn;
   document.getElementById('hintBtn').textContent = CONTENT_MODE === 'ja_only' ? "💡 図解のヒントを見る" : t().hintBtn;
   document.getElementById('backToResultsBtn').textContent = t().backToResultsBtn;
+  document.getElementById('prevBtn').textContent = previewMode ? t().backToCurrentBtn : t().prevBtn;
   document.getElementById('modeJaOnlyBtn').classList.toggle('active', CONTENT_MODE === 'ja_only');
   document.getElementById('modeBilingualJaBtn').classList.toggle('active', CONTENT_MODE === 'bilingual' && LANG === 'ja');
   document.getElementById('modeEnBtn').classList.toggle('active', CONTENT_MODE === 'bilingual' && LANG === 'en');
@@ -1624,6 +1636,11 @@ let timerHandle = null;
 let reviewMode = false;
 let reviewIdx = null;
 
+// 試験中に「戻る」で直前の問題を確認するための状態。previewIdxはQUESTIONS_JAへの元インデックス。
+// 確認のみで回答の変更はできず、採点結果には一切影響しない。
+let previewMode = false;
+let previewIdx = null;
+
 const startCard = document.getElementById('startCard');
 const questionCard = document.getElementById('questionCard');
 const resultCard = document.getElementById('resultCard');
@@ -1632,6 +1649,7 @@ const myGlossaryCard = document.getElementById('myGlossaryCard');
 const helpCard = document.getElementById('helpCard');
 const answerBtn = document.getElementById('answerBtn');
 const nextBtn = document.getElementById('nextBtn');
+const prevBtn = document.getElementById('prevBtn');
 const feedbackEl = document.getElementById('feedback');
 const timerLabelEl = document.getElementById('timerLabel');
 const hintBtn = document.getElementById('hintBtn');
@@ -1650,6 +1668,7 @@ function explanationFor(idx) {
 
 // 現在表示中の問題の、QUESTIONS_JAに対する元インデックス
 function activeIdx() {
+  if (previewMode) return previewIdx;
   return reviewMode ? reviewIdx : session[currentIndex];
 }
 
@@ -1829,7 +1848,9 @@ function buildFeedbackHtml(isCorrect, correctLetter) {
   const diagramNote = caption
     ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #bbb; font-size:0.9em;">${esc(STRINGS.ja.diagramNote(caption))}</div>`
     : '';
-  const header = isCorrect ? STRINGS.ja.correctHeader : STRINGS.ja.wrongHeader(correctLetter);
+  const header = previewMode
+    ? `📖 ${STRINGS.ja.correctAnswerLabel}${correctLetter}`
+    : (isCorrect ? STRINGS.ja.correctHeader : STRINGS.ja.wrongHeader(correctLetter));
   return `<strong>${esc(header)}</strong><br>${escAndLinkify(explanationFor(activeIdx()))}${diagramNote}`;
 }
 
@@ -1841,7 +1862,7 @@ function renderFeedback() {
   }
   const isCorrect = selectedPos === currentCorrectPos;
   const correctLetter = ['A', 'B', 'C', 'D'][currentCorrectPos];
-  feedbackEl.className = isCorrect ? 'feedback correct' : 'feedback wrong';
+  feedbackEl.className = previewMode ? 'feedback' : (isCorrect ? 'feedback correct' : 'feedback wrong');
   feedbackEl.innerHTML = buildFeedbackHtml(isCorrect, correctLetter);
 }
 
@@ -1876,34 +1897,53 @@ function showQuestion(preserveState) {
   const idx = activeIdx();
   const qJA = QUESTIONS_JA[idx];
   const q = getQ(idx);
+  const previewPos = currentIndex - 1; // previewMode中、previewIdxはsession[previewPos]と一致する
 
   backToResultsBtn.classList.toggle('hidden', !reviewMode);
-  if (reviewMode) {
+  if (previewMode) {
+    document.getElementById('progress').textContent = t().previewProgress(previewPos + 1, session.length);
+  } else if (reviewMode) {
     document.getElementById('progress').textContent = CONTENT_MODE === 'ja_only' ? "復習モード" : t().reviewProgress;
   } else {
     document.getElementById('progress').textContent = t().progress(currentIndex + 1, session.length);
   }
   document.getElementById('domainLabel').textContent = t().domainPrefix + domainLabel(qJA.domain);
   timerLabelEl.classList.toggle('hidden', reviewMode);
-  document.getElementById('qtext').innerHTML = `${reviewMode ? '' : (currentIndex + 1) + '. '}${escAndLinkify(q.text)}`;
+  const qNumberPrefix = previewMode ? (previewPos + 1) + '. ' : (reviewMode ? '' : (currentIndex + 1) + '. ');
+  document.getElementById('qtext').innerHTML = `${qNumberPrefix}${escAndLinkify(q.text)}`;
 
   if (!preserveState) {
-    answered = false;
-    selectedPos = -1;
-    hintShown = false;
-    currentOrder = shuffle([0, 1, 2, 3]);
-    currentCorrectPos = currentOrder.indexOf(qJA.correct);
+    if (previewMode) {
+      // プレビューは常に「回答済み」状態として正解を確認のみできる表示にする（採点結果には影響しない）
+      answered = true;
+      selectedPos = -1;
+      hintShown = true;
+      currentOrder = [0, 1, 2, 3];
+      currentCorrectPos = qJA.correct;
+    } else {
+      answered = false;
+      selectedPos = -1;
+      hintShown = false;
+      currentOrder = shuffle([0, 1, 2, 3]);
+      currentCorrectPos = currentOrder.indexOf(qJA.correct);
+    }
   }
 
   renderChoices();
   renderFeedback();
   updateDiagramVisibility();
+  answerBtn.classList.toggle('hidden', previewMode);
+  nextBtn.classList.toggle('hidden', previewMode);
   answerBtn.disabled = answered;
   nextBtn.disabled = !answered;
   nextBtn.textContent = reviewMode ? t().backToResultsBtn : t().nextBtn;
+  prevBtn.textContent = previewMode ? t().backToCurrentBtn : t().prevBtn;
+  prevBtn.classList.toggle('hidden', reviewMode);
+  prevBtn.disabled = previewMode ? false : currentIndex <= 0;
 }
 
 answerBtn.addEventListener('click', () => {
+  if (previewMode) return;
   if (answered) return;
   if (!reviewMode && examFinished) return;
   const selectedInput = document.querySelector('input[name="choice"]:checked');
@@ -1946,6 +1986,7 @@ answerBtn.addEventListener('click', () => {
 });
 
 nextBtn.addEventListener('click', () => {
+  if (previewMode) return;
   if (reviewMode) {
     exitReview();
     return;
@@ -1962,6 +2003,35 @@ nextBtn.addEventListener('click', () => {
 
 backToResultsBtn.addEventListener('click', () => {
   if (reviewMode) exitReview();
+});
+
+// 試験中に直前の問題を確認のみ表示する（回答の変更・採点への影響はなし）
+let savedQuestionState = null;
+
+function enterPreview() {
+  if (reviewMode || previewMode || currentIndex <= 0) return;
+  savedQuestionState = { answered, selectedPos, hintShown, currentOrder, currentCorrectPos };
+  previewIdx = session[currentIndex - 1];
+  previewMode = true;
+  showQuestion();
+}
+
+function exitPreview() {
+  if (!previewMode) return;
+  previewMode = false;
+  previewIdx = null;
+  ({ answered, selectedPos, hintShown, currentOrder, currentCorrectPos } = savedQuestionState);
+  savedQuestionState = null;
+  showQuestion(true);
+}
+
+prevBtn.addEventListener('click', () => {
+  if (reviewMode) return;
+  if (previewMode) {
+    exitPreview();
+    return;
+  }
+  enterPreview();
 });
 
 // 結果画面から特定の問題を復習する（採点結果には影響しない）
@@ -2035,6 +2105,9 @@ document.getElementById('backToTitleBtn').addEventListener('click', () => {
 
   stopTimer();
   reviewMode = false;
+  previewMode = false;
+  previewIdx = null;
+  savedQuestionState = null;
   session = [];
   currentIndex = 0;
   examFinished = false;
