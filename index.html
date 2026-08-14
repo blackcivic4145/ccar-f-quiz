@@ -1223,28 +1223,344 @@ function svgLabel(x, y, label) {
 // 「全部日本語版」選択時のみ第2引数を使う。
 function L(mixedJa, fullJa) { return CONTENT_MODE === 'ja_only' ? fullJa : mixedJa; }
 
+// 問題ごとの図解カスタムラベル。キーはQUESTIONS_JAの元インデックス(0-299)。
+// 各値のキーは "<slot>_mixed" / "<slot>_full"（日本語/英語版・全部日本語版それぞれの文言）、
+// またはclaude_code_config用の"highlightIndex"（0-4、強調表示する項目）。
+// 未設定のSlotは各ビルダーの既定（汎用）文言にフォールバックする。
+const QUESTION_DIAGRAM_LABELS = {
+  0: {itemA_mixed:"Code Review Subagent",itemA_full:"コードレビューサブエージェント",itemB_mixed:"実装Subagent",itemB_full:"実装サブエージェント"},
+  1: {detailA_mixed:"外部API問い合わせ",detailA_full:"外部API問い合わせ",detailB_mixed:"想定と異なるReturn値",detailB_full:"想定と異なる戻り値"},
+  2: {inputLabel_mixed:"複数File変更Task",inputLabel_full:"複数ファイル変更タスク",itemA_mixed:"File A編集",itemA_full:"ファイルA編集",itemB_mixed:"File B編集",itemB_full:"ファイルB編集",itemC_mixed:"File C編集",itemC_full:"ファイルC編集"},
+  3: {primary_mixed:"類似名Tool",primary_full:"類似名ツール"},
+  4: {primary_mixed:"Migration Orchestrator",primary_full:"移行オーケストレーター",itemA_mixed:"調査Worker",itemA_full:"調査ワーカー",itemB_mixed:"実装Worker",itemB_full:"実装ワーカー",itemC_mixed:"検証Worker",itemC_full:"検証ワーカー"},
+  5: {detailA_mixed:"Report生成",detailA_full:"レポート生成",detailB_mixed:"品質Check",detailB_full:"品質チェック"},
+  6: {primary_mixed:"File削除・Deploy",primary_full:"ファイル削除・デプロイ"},
+  7: {primary_mixed:"動的Subtask決定Orchestrator",primary_full:"動的サブタスク決定オーケストレーター",itemA_mixed:"調査Worker",itemA_full:"調査ワーカー",itemB_mixed:"実装Worker",itemB_full:"実装ワーカー",itemC_mixed:"Test Worker",itemC_full:"テストワーカー"},
+  8: {inputLabel_mixed:"問い合わせ内容",inputLabel_full:"問い合わせ内容",itemA_mixed:"返金",itemA_full:"返金",itemB_mixed:"技術Support",itemB_full:"技術サポート",itemC_mixed:"一般Q&A",itemC_full:"一般Q&A"},
+  9: {itemA_mixed:"調査",itemA_full:"調査",itemB_mixed:"下書き作成",itemB_full:"下書き作成",itemC_mixed:"出典Check",itemC_full:"出典確認"},
+  10: {detailA_mixed:"Open-ended調査",detailA_full:"オープンエンド調査",detailB_mixed:"必要Step数の判断",detailB_full:"必要ステップ数の判断"},
+  11: {highlightIndex:0},
+  12: {primary_mixed:"危険Commandの実行",primary_full:"危険コマンドの実行"},
+  13: {highlightIndex:4},
+  14: {primary_mixed:"社内Ticket管理System",primary_full:"社内チケット管理システム"},
+  15: {primary_mixed:"rm -rf Command",primary_full:"rm -rfコマンド"},
+  16: {itemA_mixed:"Code Review Subagent",itemA_full:"コードレビューサブエージェント",itemB_mixed:"汎用Subagent",itemB_full:"汎用サブエージェント"},
+  17: {primary_mixed:"大規模Refactoring",primary_full:"大規模リファクタリング"},
+  18: {highlightIndex:0},
+  19: {primary_mixed:"{ \"status\": \"ok\" }",primary_full:"{ \"status\": \"ok\" }"},
+  20: {detailA_mixed:"Tone・Role設定",detailA_full:"トーン・役割設定",detailB_mixed:"個別Request内容",detailB_full:"個別リクエスト内容"},
+  21: {primary_mixed:"{ \"format\": \"...\" }",primary_full:"{ \"format\": \"...\" }"},
+  22: {primary_mixed:"{ \"thinking\": \"...\", \"answer\": \"...\" }",primary_full:"{ \"thinking\": \"...\", \"answer\": \"...\" }"},
+  23: {detailA_mixed:"発注数量計算",detailA_full:"発注数量計算",detailB_mixed:"計算結果を検証",detailB_full:"計算結果を検証"},
+  24: {detailA_mixed:"肯定形の振る舞いRule",detailA_full:"肯定形の振る舞い規則",detailB_mixed:"禁止事項ではなく依頼内容",detailB_full:"禁止事項ではなく依頼内容"},
+  25: {primary_mixed:"{ \"user_id\": 1 }",primary_full:"{ \"user_id\": 1 }"},
+  26: {primary_mixed:"出典明記Rule",primary_full:"出典明記のルール"},
+  27: {primary_mixed:"社内LLM Application",primary_full:"社内LLMアプリケーション"},
+  28: {primary_mixed:"社内MCP Client App",primary_full:"社内MCPクライアントアプリ"},
+  29: {primary_mixed:"search_docs",primary_full:"search_docs"},
+  30: {primary_mixed:"get_user",primary_full:"get_user"},
+  31: {primary_mixed:"社内Wiki閲覧App",primary_full:"社内ウィキ閲覧アプリ"},
+  32: {primary_mixed:"外部API呼び出しTool",primary_full:"外部API呼び出しツール"},
+  33: {primary_mixed:"決済API",primary_full:"決済API"},
+  34: {primary_mixed:"Pair programmingの要点",primary_full:"ペアプログラミングの要点"},
+  35: {primary_mixed:"長大なSystem Prompt",primary_full:"長大なシステムプロンプト"},
+  36: {primary_mixed:"外部API呼び出しTool",primary_full:"外部API呼び出しツール"},
+  37: {itemA_mixed:"Log解析Subagent",itemA_full:"ログ解析サブエージェント",itemB_mixed:"File探索Subagent",itemB_full:"ファイル探索サブエージェント"},
+  38: {primary_mixed:"進捗・状態情報",primary_full:"進捗・状態情報"},
+  39: {detailA_mixed:"顧客向け回答生成",detailA_full:"顧客向け回答生成",detailB_mixed:"回答品質を評価",detailB_full:"回答品質を評価"},
+  40: {itemA_mixed:"Code Review Subagent",itemA_full:"コードレビューサブエージェント",itemB_mixed:"最小権限Subagent",itemB_full:"最小権限サブエージェント"},
+  41: {primary_mixed:"調査結果統合Orchestrator",primary_full:"調査結果統合オーケストレーター",itemA_mixed:"箇条書き出力Worker",itemA_full:"箇条書き出力ワーカー",itemB_mixed:"自由文出力Worker",itemB_full:"自由文出力ワーカー",itemC_mixed:"表形式出力Worker",itemC_full:"表形式出力ワーカー"},
+  42: {detailA_mixed:"検索・修正を反復",detailA_full:"検索・修正を反復",detailB_mixed:"終了条件なしでCost増大",detailB_full:"終了条件なしでコスト増大"},
+  43: {detailA_mixed:"発注量を調整",detailA_full:"発注量を調整",detailB_mixed:"在庫状況をFeedback",detailB_full:"在庫状況をフィードバック"},
+  44: {detailA_mixed:"Customer対応Agent向け設定",detailA_full:"顧客対応エージェント向け設定",detailB_mixed:"社内Data分析Agent向け設定",detailB_full:"社内データ分析エージェント向け設定"},
+  45: {primary_mixed:"返金処理",primary_full:"返金処理"},
+  46: {itemA_mixed:"調査Subagent",itemA_full:"調査サブエージェント",itemB_mixed:"要約Subagent",itemB_full:"要約サブエージェント"},
+  47: {primary_mixed:"税額計算Orchestrator",primary_full:"税額計算オーケストレーター",itemA_mixed:"確定計算Code",itemA_full:"確定計算コード",itemB_mixed:"説明文生成LLM",itemB_full:"説明文生成LLM",itemC_mixed:"結果統合",itemC_full:"結果統合"},
+  48: {detailA_mixed:"検索語を言い換え再検索",detailA_full:"検索語を言い換え再検索",detailB_mixed:"情報不足と判断",detailB_full:"情報不足と判断"},
+  49: {primary_mixed:"意思決定Log記録Orchestrator",primary_full:"意思決定ログ記録オーケストレーター",itemA_mixed:"Tool呼び出し記録",itemA_full:"ツール呼び出し記録",itemB_mixed:"意思決定記録",itemB_full:"意思決定記録",itemC_mixed:"障害調査用Log",itemC_full:"障害調査用ログ"},
+  50: {inputLabel_mixed:"Code解析Task",inputLabel_full:"コード解析タスク",itemA_mixed:"Subagent A(Error発生)",itemA_full:"サブエージェントA(エラー発生)",itemB_mixed:"Subagent B",itemB_full:"サブエージェントB",itemC_mixed:"Subagent C",itemC_full:"サブエージェントC"},
+  51: {primary_mixed:"各Tool",primary_full:"各ツール"},
+  52: {detailA_mixed:"出力を再生成",detailA_full:"出力を再生成",detailB_mixed:"基準未達と判定",detailB_full:"基準未達と判定"},
+  53: {primary_mixed:"進捗・中間結果(State)",primary_full:"進捗・中間結果(状態)"},
+  54: {primary_mixed:"複数System調査Orchestrator",primary_full:"複数システム調査オーケストレーター",itemA_mixed:"Task複雑さ判定",itemA_full:"タスク複雑さ判定",itemB_mixed:"検証Step要否判定",itemB_full:"検証ステップ要否判定",itemC_mixed:"Cost・Latency許容度判定",itemC_full:"コスト・レイテンシ許容度判定"},
+  55: {primary_mixed:"誤引数Tool呼び出し",primary_full:"誤引数ツール呼び出し"},
+  56: {primary_mixed:"git push・本番DB操作",primary_full:"git push・本番データベース操作"},
+  57: {highlightIndex:0},
+  58: {itemA_mixed:"Frontend調査Subagent",itemA_full:"フロントエンド調査サブエージェント",itemB_mixed:"Backend調査Subagent",itemB_full:"バックエンド調査サブエージェント"},
+  59: {primary_mixed:"Logディレクトリのrm -rf削除",primary_full:"ログディレクトリのrm -rf削除"},
+  60: {highlightIndex:4},
+  61: {highlightIndex:1},
+  62: {highlightIndex:2},
+  63: {highlightIndex:4},
+  64: {primary_mixed:"本番DBへの直接Query実行",primary_full:"本番データベースへの直接クエリ実行"},
+  65: {itemA_mixed:"Doc生成Subagent",itemA_full:"ドキュメント生成サブエージェント",itemB_mixed:"Deploy専用Subagent",itemB_full:"デプロイ専用サブエージェント"},
+  66: {primary_mixed:"複数Moduleの大規模Refactoring",primary_full:"複数モジュールの大規模リファクタリング"},
+  67: {highlightIndex:0},
+  68: {primary_mixed:"契約の重要条項",primary_full:"契約の重要な条項"},
+  69: {detailA_mixed:"企業法務専門家としての役割",detailA_full:"企業法務専門家としての役割",detailB_mixed:"契約書の確認依頼",detailB_full:"契約書の確認依頼"},
+  70: {primary_mixed:"{ \"result\": \"PASS\" }",primary_full:"{ \"result\": \"PASS\" }"},
+  71: {primary_mixed:"{ \"candidates\": [] }",primary_full:"{ \"candidates\": [] }"},
+  72: {primary_mixed:"検索結果からの指示注入",primary_full:"検索結果からの指示混入"},
+  73: {primary_mixed:"{ \"chunk\": 1 }",primary_full:"{ \"chunk\": 1 }"},
+  74: {detailA_mixed:"Code変更案生成",detailA_full:"コード変更案の生成",detailB_mixed:"自己矛盾Check",detailB_full:"自己矛盾のチェック"},
+  75: {primary_mixed:"{ \"tone\": \"casual\" }",primary_full:"{ \"tone\": \"casual\" }"},
+  76: {primary_mixed:"{ \"coupon_code\": null }",primary_full:"{ \"coupon_code\": null }"},
+  77: {primary_mixed:"{ \"order_id\": 123 }",primary_full:"{ \"order_id\": 123 }"},
+  78: {itemA_mixed:"財務指標確認",itemA_full:"財務指標の確認",itemB_mixed:"リスク区分判定",itemB_full:"リスク区分の判定",itemC_mixed:"承認可否決定",itemC_full:"承認可否の決定"},
+  79: {primary_mixed:"{ \"prompt_version\": \"v12\" }",primary_full:"{ \"prompt_version\": \"v12\" }"},
+  80: {primary_mixed:"社内Chat Application",primary_full:"社内チャットアプリケーション"},
+  81: {primary_mixed:"調査Report生成Client",primary_full:"調査レポート生成クライアント"},
+  82: {primary_mixed:"update_order_status",primary_full:"update_order_status"},
+  83: {primary_mixed:"process_order",primary_full:"process_order"},
+  84: {primary_mixed:"社内Ticket管理System",primary_full:"社内チケット管理システム"},
+  85: {primary_mixed:"Data集計Tool",primary_full:"データ集計ツール"},
+  86: {primary_mixed:"社外Partner向けClient",primary_full:"社外パートナー向けクライアント"},
+  87: {primary_mixed:"update_record",primary_full:"update_record"},
+  88: {primary_mixed:"manage_everything",primary_full:"manage_everything"},
+  89: {primary_mixed:"検索結果の要点",primary_full:"検索結果の要点"},
+  90: {primary_mixed:"process_request",primary_full:"process_request"},
+  91: {primary_mixed:"重要な制約条件",primary_full:"重要な制約条件"},
+  92: {primary_mixed:"過去のFile Path誤字",primary_full:"過去のファイルパス誤字"},
+  93: {primary_mixed:"関連性の高い指示",primary_full:"関連性の高い指示"},
+  94: {primary_mixed:"決済Tool",primary_full:"決済ツール"},
+  95: {primary_mixed:"外部API",primary_full:"外部API"},
+  96: {primary_mixed:"出力形式の変更",primary_full:"出力形式の変更"},
+  97: {primary_mixed:"関連性の高い情報のみ",primary_full:"関連性の高い情報のみ"},
+  98: {detailA_mixed:"Agent応答生成",detailA_full:"エージェントの応答生成",detailB_mixed:"Test caseによる評価",detailB_full:"テストケースによる評価"},
+  99: {detailA_mixed:"固定的な振る舞いRule",detailA_full:"固定的な振る舞いのルール",detailB_mixed:"User固有のContext",detailB_full:"ユーザー固有のコンテキスト"},
+  100: {primary_mixed:"{ \"field_name\": \"value\" }",primary_full:"{ \"field_name\": \"value\" }"},
+  101: {itemA_mixed:"File読み込み",itemA_full:"ファイルの読み込み",itemB_mixed:"Migration実行",itemB_full:"移行の実行",itemC_mixed:"結果検証",itemC_full:"結果の検証"},
+  102: {inputLabel_mixed:"Config File更新Task",inputLabel_full:"設定ファイル更新タスク",itemA_mixed:"Agent A書き込み",itemA_full:"エージェントA書き込み",itemB_mixed:"Agent B書き込み",itemB_full:"エージェントB書き込み",itemC_mixed:"Lock取得",itemC_full:"ロック取得"},
+  103: {primary_mixed:"返金審査Orchestrator",primary_full:"返金審査オーケストレーター",itemA_mixed:"判定Worker",itemA_full:"判定ワーカー",itemB_mixed:"理由記録Worker",itemB_full:"理由記録ワーカー",itemC_mixed:"説明生成Worker",itemC_full:"説明生成ワーカー"},
+  104: {primary_mixed:"query_tool",primary_full:"query_tool"},
+  105: {detailA_mixed:"Architecture提案生成",detailA_full:"アーキテクチャ提案の生成",detailB_mixed:"複数案比較評価",detailB_full:"複数案の比較評価"},
+  106: {primary_mixed:"長期的な好み情報",primary_full:"長期的な好み情報"},
+  107: {itemA_mixed:"調査Subagent",itemA_full:"調査サブエージェント",itemB_mixed:"実装Subagent",itemB_full:"実装サブエージェント"},
+  108: {detailA_mixed:"実行中の処理",detailA_full:"実行中の処理",detailB_mixed:"Loop発生を検知",detailB_full:"ループ発生を検知"},
+  109: {primary_mixed:"消費税計算Orchestrator",primary_full:"消費税計算オーケストレーター",itemA_mixed:"LLM判断Worker",itemA_full:"LLM判断ワーカー",itemB_mixed:"決定論的計算Worker",itemB_full:"決定論的計算ワーカー",itemC_mixed:"検証Worker",itemC_full:"検証ワーカー"},
+  110: {itemA_mixed:"親Subagent",itemA_full:"親サブエージェント",itemB_mixed:"孫Subagent",itemB_full:"孫サブエージェント"},
+  111: {primary_mixed:"顧客満足度向上Orchestrator",primary_full:"顧客満足度向上オーケストレーター",itemA_mixed:"値引きWorker",itemA_full:"値引きワーカー",itemB_mixed:"機能追加Worker",itemB_full:"機能追加ワーカー",itemC_mixed:"対応方針Worker",itemC_full:"対応方針ワーカー"},
+  112: {primary_mixed:"数百File一括変更",primary_full:"数百ファイルの一括変更"},
+  113: {primary_mixed:"問い合わせ対応Orchestrator",primary_full:"問い合わせ対応オーケストレーター",itemA_mixed:"Routing分類Worker",itemA_full:"振り分け分類ワーカー",itemB_mixed:"調査Worker",itemB_full:"調査ワーカー",itemC_mixed:"定型処理Worker",itemC_full:"定型処理ワーカー"},
+  114: {itemA_mixed:"Frontend Subagent",itemA_full:"フロントエンドサブエージェント",itemB_mixed:"Backend Subagent",itemB_full:"バックエンドサブエージェント"},
+  115: {highlightIndex:0},
+  116: {highlightIndex:0},
+  117: {detailA_mixed:"Code生成",detailA_full:"コード生成",detailB_mixed:"Linter/Formatter Check",detailB_full:"リンター・フォーマッターチェック"},
+  118: {highlightIndex:0},
+  119: {highlightIndex:1},
+  120: {primary_mixed:"重要なStack trace",primary_full:"重要なスタックトレース"},
+  121: {detailA_mixed:"候補実装",detailA_full:"候補実装",detailB_mixed:"Trade-off比較",detailB_full:"トレードオフ比較"},
+  122: {itemA_mixed:"Bug修正実装",itemA_full:"バグ修正実装",itemB_mixed:"Test実行",itemB_full:"テスト実行",itemC_mixed:"結果確認",itemC_full:"結果確認"},
+  123: {highlightIndex:0},
+  124: {primary_mixed:"{ \"tone\": \"polite\" }",primary_full:"{ \"tone\": \"polite\" }"},
+  125: {primary_mixed:"{ \"length\": \"3行\" }",primary_full:"{ \"length\": \"3行\" }"},
+  126: {primary_mixed:"{ \"answer\": \"わかりません\" }",primary_full:"{ \"answer\": \"わかりません\" }"},
+  127: {detailA_mixed:"Formal文体指定",detailA_full:"正式な文体指定",detailB_mixed:"海外向け文書翻訳",detailB_full:"海外向け文書翻訳"},
+  128: {detailA_mixed:"通常入力Test",detailA_full:"通常入力テスト",detailB_mixed:"Edge case検証",detailB_full:"エッジケース検証"},
+  129: {primary_mixed:"{ \"lang\": \"ja\" }",primary_full:"{ \"lang\": \"ja\" }"},
+  130: {detailA_mixed:"回答生成",detailA_full:"回答生成",detailB_mixed:"曖昧基準で評価",detailB_full:"曖昧な基準で評価"},
+  131: {primary_mixed:"{ \"python\": \"3.11\" }",primary_full:"{ \"python\": \"3.11\" }"},
+  132: {primary_mixed:"{ \"output\": \"結論のみ\" }",primary_full:"{ \"output\": \"結論のみ\" }"},
+  133: {itemA_mixed:"データ抽出",itemA_full:"データ抽出",itemB_mixed:"出力形式変更",itemB_full:"出力形式変更",itemC_mixed:"Report生成",itemC_full:"レポート生成"},
+  134: {primary_mixed:"get_item_by_id",primary_full:"get_item_by_id"},
+  135: {detailA_mixed:"商品検索",detailA_full:"商品検索",detailB_mixed:"検索結果を確認",detailB_full:"検索結果を確認"},
+  136: {primary_mixed:"get_inventory_info",primary_full:"get_inventory_info"},
+  137: {primary_mixed:"search_products",primary_full:"search_products"},
+  138: {primary_mixed:"search_v2",primary_full:"search_v2"},
+  139: {primary_mixed:"機密情報の外部送信",primary_full:"機密情報の外部送信"},
+  140: {primary_mixed:"post_to_slack",primary_full:"post_to_slack"},
+  141: {primary_mixed:"call_backend_api",primary_full:"call_backend_api"},
+  142: {primary_mixed:"send_email",primary_full:"send_email"},
+  143: {primary_mixed:"最初の目的・要件",primary_full:"最初の目的・要件"},
+  144: {detailA_mixed:"回答生成",detailA_full:"回答生成",detailB_mixed:"安定性評価",detailB_full:"安定性評価"},
+  145: {primary_mixed:"決済API",primary_full:"決済API"},
+  146: {primary_mixed:"最新のManual情報",primary_full:"最新のマニュアル情報"},
+  147: {detailA_mixed:"自動評価",detailA_full:"自動評価",detailB_mixed:"人間Sampling review",detailB_full:"人間サンプリング確認"},
+  148: {primary_mixed:"矛盾する情報源",primary_full:"矛盾する情報源"},
+  149: {detailA_mixed:"Tool呼び出しError",detailA_full:"ツール呼び出しエラー",detailB_mixed:"Error log分析",detailB_full:"エラー記録分析"},
+  150: {primary_mixed:"法的請求の自動処理",primary_full:"法的請求の自動処理"},
+  151: {primary_mixed:"上限超過の返金承認",primary_full:"上限超過の返金承認"},
+  152: {primary_mixed:"{ \"agent\": \"analysis\", \"step\": 2 }",primary_full:"{ \"agent\": \"analysis\", \"step\": 2 }"},
+  153: {primary_mixed:"在庫連携API",primary_full:"在庫連携API"},
+  154: {primary_mixed:"Operatorへの引き継ぎ",primary_full:"担当者への引き継ぎ"},
+  155: {primary_mixed:"調査Orchestrator",primary_full:"調査オーケストレーター",itemA_mixed:"調査WorkerA",itemA_full:"調査ワーカーA",itemB_mixed:"調査WorkerB",itemB_full:"調査ワーカーB",itemC_mixed:"調査WorkerC",itemC_full:"調査ワーカーC"},
+  156: {primary_mixed:"統合Agent",primary_full:"統合エージェント",itemA_mixed:"調査Agent1",itemA_full:"調査エージェント1",itemB_mixed:"調査Agent2",itemB_full:"調査エージェント2",itemC_mixed:"調査Agent3",itemC_full:"調査エージェント3"},
+  157: {primary_mixed:"税率判定Orchestrator",primary_full:"税率判定オーケストレーター",itemA_mixed:"Rule-based計算",itemA_full:"ルールベース計算",itemB_mixed:"LLM判断",itemB_full:"LLM判断",itemC_mixed:"例外処理Worker",itemC_full:"例外処理ワーカー"},
+  158: {primary_mixed:"未認証Userへの情報開示",primary_full:"未認証利用者への情報開示"},
+  159: {primary_mixed:"Agent間連携処理",primary_full:"エージェント間連携処理"},
+  160: {inputLabel_mixed:"問い合わせ内容",inputLabel_full:"問い合わせ内容",itemA_mixed:"技術Support",itemA_full:"技術サポート",itemB_mixed:"Billing対応",itemB_full:"請求対応",itemC_mixed:"一般問い合わせ",itemC_full:"一般問い合わせ"},
+  161: {primary_mixed:"{ \"answer\": \"...\", \"source\": \"KB#123\" }",primary_full:"{ \"answer\": \"...\", \"source\": \"KB#123\" }"},
+  162: {primary_mixed:"Cost監視Orchestrator",primary_full:"費用監視オーケストレーター",itemA_mixed:"検索Agent",itemA_full:"検索エージェント",itemB_mixed:"要約Agent",itemB_full:"要約エージェント",itemC_mixed:"通知Agent",itemC_full:"通知エージェント"},
+  163: {primary_mixed:"決済Tool",primary_full:"決済ツール"},
+  164: {primary_mixed:"transfer_funds",primary_full:"transfer_funds"},
+  165: {primary_mixed:"未検証MCP接続Client",primary_full:"未検証MCP接続クライアント"},
+  166: {primary_mixed:"開発者Local環境Client",primary_full:"開発者ローカル環境クライアント"},
+  167: {primary_mixed:"決済確認API",primary_full:"決済確認API"},
+  168: {primary_mixed:"{ \"tool_choice\": \"notify_approver\" }",primary_full:"{ \"tool_choice\": \"notify_approver\" }"},
+  169: {primary_mixed:"create_report",primary_full:"create_report"},
+  170: {primary_mixed:"execute_task",primary_full:"execute_task"},
+  171: {primary_mixed:"list_items",primary_full:"list_items"},
+  172: {highlightIndex:3},
+  173: {primary_mixed:"Session要約",primary_full:"セッション要約"},
+  174: {highlightIndex:0},
+  175: {primary_mixed:"本番Deploy実行",primary_full:"本番デプロイ実行"},
+  176: {primary_mixed:"Plan内の一部変更",primary_full:"計画内の一部変更"},
+  177: {primary_mixed:"Lint/Test未実行Commit",primary_full:"検証未実行のコミット"},
+  178: {highlightIndex:2},
+  179: {itemA_mixed:"作業Subagent1",itemA_full:"作業サブエージェント1",itemB_mixed:"作業Subagent2",itemB_full:"作業サブエージェント2"},
+  180: {primary_mixed:".envFileへのAccess",primary_full:".envファイルへのアクセス"},
+  181: {highlightIndex:0},
+  182: {primary_mixed:"{ \"messages\": [...] }",primary_full:"{ \"messages\": [...] }"},
+  183: {primary_mixed:"{ \"answer\": \"...\" }",primary_full:"{ \"answer\": \"...\" }"},
+  184: {primary_mixed:"{ \"shipping_address\": null }",primary_full:"{ \"shipping_address\": null }"},
+  185: {primary_mixed:"{ \"end_date\": \"2023-01-01\" }",primary_full:"{ \"end_date\": \"2023-01-01\" }"},
+  186: {primary_mixed:"{ \"source\": \"p.12\" }",primary_full:"{ \"source\": \"p.12\" }"},
+  187: {primary_mixed:"{ \"confidence\": 0.42 }",primary_full:"{ \"confidence\": 0.42 }"},
+  188: {detailA_mixed:"一貫した対応原則",detailA_full:"一貫した対応原則",detailB_mixed:"想定外の問い合わせD",detailB_full:"想定外の問い合わせD"},
+  189: {detailA_mixed:"Toneの指示",detailA_full:"トーンの指示",detailB_mixed:"社内History背景説明",detailB_full:"社内の歴史的背景説明"},
+  190: {detailA_mixed:"Few-shot例20個",detailA_full:"実例20個",detailB_mixed:"通常の質問対応",detailB_full:"通常の質問対応"},
+  191: {primary_mixed:"{ \"amount\": null }",primary_full:"{ \"amount\": null }"},
+  192: {primary_mixed:"直近のやり取り",primary_full:"直近のやり取り"},
+  193: {primary_mixed:"進捗状態Object",primary_full:"進捗状態オブジェクト"},
+  194: {primary_mixed:"検索で取得した関連Page",primary_full:"検索で取得した関連ページ"},
+  195: {primary_mixed:"最新の在庫数",primary_full:"最新の在庫数"},
+  196: {detailA_mixed:"出力の生成",detailA_full:"出力の生成",detailB_mixed:"厳しすぎる自動判定",detailB_full:"厳しすぎる自動判定"},
+  197: {primary_mixed:"夜間Log解析結果",primary_full:"夜間ログ解析結果"},
+  198: {primary_mixed:"Cost/Latencyの比較検討",primary_full:"コストとレイテンシーの比較検討"},
+  199: {detailA_mixed:"回答の生成",detailA_full:"回答の生成",detailB_mixed:"評価Datasetの更新",detailB_full:"評価データセットの更新"},
+  200: {primary_mixed:"Task再割当Orchestrator",primary_full:"タスク再割り当てオーケストレーター",itemA_mixed:"失敗Worker(Timeout)",itemA_full:"失敗ワーカー(タイムアウト)",itemB_mixed:"成功Worker",itemB_full:"成功ワーカー",itemC_mixed:"成功Worker",itemC_full:"成功ワーカー"},
+  201: {itemA_mixed:"調査用Subagent",itemA_full:"調査用サブエージェント",itemB_mixed:"書き込み専用Subagent",itemB_full:"書き込み専用サブエージェント"},
+  202: {detailA_mixed:"同じ手順の実行",detailA_full:"同じ手順の実行",detailB_mixed:"Format不一致のError",detailB_full:"フォーマット不一致のエラー"},
+  203: {inputLabel_mixed:"問い合わせ内容",inputLabel_full:"問い合わせ内容",itemA_mixed:"FAQ応答",itemA_full:"FAQ応答",itemB_mixed:"返金Policy判断",itemB_full:"返金ポリシー判断",itemC_mixed:"その他の問い合わせ",itemC_full:"その他の問い合わせ"},
+  204: {inputLabel_mixed:"判定Task",inputLabel_full:"判定タスク",itemA_mixed:"Instance1回答",itemA_full:"インスタンス1回答",itemB_mixed:"Instance2回答",itemB_full:"インスタンス2回答",itemC_mixed:"Instance3回答",itemC_full:"インスタンス3回答"},
+  205: {detailA_mixed:"文章生成",detailA_full:"文章生成",detailB_mixed:"Rubric評価(Critic)",detailB_full:"ルーブリック評価"},
+  206: {itemA_mixed:"構成案作成",itemA_full:"構成案作成",itemB_mixed:"本文執筆",itemB_full:"本文執筆",itemC_mixed:"事実確認",itemC_full:"事実確認"},
+  207: {primary_mixed:"確定発注の実行",primary_full:"確定発注の実行"},
+  208: {primary_mixed:"外部Tool",primary_full:"外部ツール"},
+  209: {primary_mixed:"Task統括Orchestrator",primary_full:"タスク統括オーケストレーター",itemA_mixed:"送信元Worker",itemA_full:"送信元ワーカー",itemB_mixed:"受信先Worker(直接連携)",itemB_full:"受信先ワーカー(直接連携)",itemC_mixed:"他のWorker",itemC_full:"他のワーカー"},
+  210: {itemA_mixed:"専門Task用Subagent",itemA_full:"専門タスク用サブエージェント",itemB_mixed:"並列実行用Subagent",itemB_full:"並列実行用サブエージェント"},
+  211: {detailA_mixed:"次の一手を決定",detailA_full:"次の一手を決定",detailB_mixed:"未知のAPI応答形式",detailB_full:"未知のAPI応答形式"},
+  212: {inputLabel_mixed:"問い合わせ内容",inputLabel_full:"問い合わせ内容",itemA_mixed:"請求関連",itemA_full:"請求関連",itemB_mixed:"技術Support",itemB_full:"技術サポート",itemC_mixed:"その他",itemC_full:"その他"},
+  213: {inputLabel_mixed:"規約Document",inputLabel_full:"規約ドキュメント",itemA_mixed:"第1章担当Agent",itemA_full:"第1章担当エージェント",itemB_mixed:"第2章担当Agent",itemB_full:"第2章担当エージェント",itemC_mixed:"第3章担当Agent",itemC_full:"第3章担当エージェント"},
+  214: {detailA_mixed:"Code生成",detailA_full:"コード生成",detailB_mixed:"Test/静的解析による評価",detailB_full:"テスト・静的解析による評価"},
+  215: {itemA_mixed:"要望のヒアリング",itemA_full:"要望のヒアリング",itemB_mixed:"実現方法の模索",itemB_full:"実現方法の模索",itemC_mixed:"提案の作成",itemC_full:"提案の作成"},
+  216: {primary_mixed:"7件のFile削除",primary_full:"7件のファイル削除"},
+  217: {primary_mixed:"天気API・為替API",primary_full:"天気API・為替API"},
+  218: {primary_mixed:"Migration統括Orchestrator",primary_full:"マイグレーション統括オーケストレーター",itemA_mixed:"File1行変更Worker",itemA_full:"ファイル1行変更ワーカー",itemB_mixed:"File1行変更Worker",itemB_full:"ファイル1行変更ワーカー",itemC_mixed:"File1行変更Worker",itemC_full:"ファイル1行変更ワーカー"},
+  219: {itemA_mixed:"File名変更用Subagent",itemA_full:"ファイル名変更用サブエージェント",itemB_mixed:"親Agent(直接処理)",itemB_full:"親エージェント(直接処理)"},
+  220: {detailA_mixed:"同じQueryで再検索",detailA_full:"同じクエリで再検索",detailB_mixed:"検索失敗の継続",detailB_full:"検索失敗の継続"},
+  221: {inputLabel_mixed:"調査Topic",inputLabel_full:"調査トピック",itemA_mixed:"競合3社動向調査",itemA_full:"競合3社動向調査",itemB_mixed:"規制動向調査",itemB_full:"規制動向調査",itemC_mixed:"顧客要望傾向調査",itemC_full:"顧客要望傾向調査"},
+  222: {detailA_mixed:"Code生成",detailA_full:"コード生成",detailB_mixed:"Test suiteによる客観評価",detailB_full:"テストスイートによる客観評価"},
+  223: {primary_mixed:"一定額以上の取引実行",primary_full:"一定額以上の取引実行"},
+  224: {primary_mixed:"Tool呼び出し結果",primary_full:"ツール呼び出し結果"},
+  225: {inputLabel_mixed:"問い合わせ言語",inputLabel_full:"問い合わせ言語",itemA_mixed:"日本語用Prompt",itemA_full:"日本語用プロンプト",itemB_mixed:"英語用Prompt",itemB_full:"英語用プロンプト",itemC_mixed:"中国語用Prompt",itemC_full:"中国語用プロンプト"},
+  226: {itemA_mixed:"顧客Data抽出",itemA_full:"顧客データ抽出",itemB_mixed:"重複排除",itemB_full:"重複排除",itemC_mixed:"形式変換",itemC_full:"形式変換"},
+  227: {highlightIndex:0},
+  228: {primary_mixed:"再帰的な強制削除Command",primary_full:"再帰的な強制削除コマンド"},
+  229: {itemA_mixed:"CodeReview専用Subagent",itemA_full:"コードレビュー専用サブエージェント",itemB_mixed:"通常の対話Agent",itemB_full:"通常の対話エージェント"},
+  230: {primary_mixed:"CLAUDE.mdとTool定義",primary_full:"CLAUDE.mdとツール定義"},
+  231: {primary_mixed:"社内Tool",primary_full:"社内ツール"},
+  232: {highlightIndex:0},
+  233: {primary_mixed:"Bash Toolの破壊的Command実行",primary_full:"Bashツールの破壊的コマンド実行"},
+  234: {highlightIndex:0},
+  235: {primary_mixed:"Formatter自動実行",primary_full:"フォーマッターの自動実行"},
+  236: {highlightIndex:3},
+  237: {itemA_mixed:"横断検索専用Subagent",itemA_full:"横断検索専用サブエージェント",itemB_mixed:"親Session",itemB_full:"親セッション"},
+  238: {highlightIndex:4},
+  239: {primary_mixed:"直近の会話の要点",primary_full:"直近の会話の要点"},
+  240: {highlightIndex:0},
+  241: {highlightIndex:0},
+  242: {primary_mixed:"Exit code 2でBlock",primary_full:"終了コード2でブロック"},
+  243: {highlightIndex:1},
+  244: {primary_mixed:"Refactoring方針の合意事項",primary_full:"リファクタリング方針の合意事項"},
+  245: {highlightIndex:2},
+  246: {primary_mixed:"CI連携",primary_full:"CI連携"},
+  247: {primary_mixed:"{ \"status\": \"ok\" }",primary_full:"{ \"status\": \"ok\" }"},
+  248: {detailA_mixed:"Support Persona",detailA_full:"サポートペルソナ",detailB_mixed:"毎Turnの質問",detailB_full:"毎ターンの質問"},
+  249: {itemA_mixed:"要件抽出",itemA_full:"要件抽出",itemB_mixed:"設計案作成",itemB_full:"設計案作成",itemC_mixed:"Risk評価",itemC_full:"リスク評価"},
+  250: {detailA_mixed:"要約Text生成",detailA_full:"要約テキスト生成",detailB_mixed:"Rubricで判定",detailB_full:"ルーブリックで判定"},
+  251: {detailA_mixed:"Copy生成",detailA_full:"コピー生成",detailB_mixed:"Click率等で評価",detailB_full:"クリック率等で評価"},
+  252: {primary_mixed:"{ \"field\": \"value\" }",primary_full:"{ \"field\": \"value\" }"},
+  253: {detailA_mixed:"信頼できる指示",detailA_full:"信頼できる指示",detailB_mixed:"外部投稿Text",detailB_full:"外部投稿テキスト"},
+  254: {primary_mixed:"{ \"ticket_code\": \"AB-12\" }",primary_full:"{ \"ticket_code\": \"AB-12\" }"},
+  255: {detailA_mixed:"自己応答生成",detailA_full:"自己応答生成",detailB_mixed:"独立Judgeが検証",detailB_full:"独立ジャッジが検証"},
+  256: {itemA_mixed:"Step実行",itemA_full:"処理ステップ",itemB_mixed:"完了条件Check",itemB_full:"完了条件チェック",itemC_mixed:"追加Step判断",itemC_full:"追加ステップ判断"},
+  257: {primary_mixed:"{ \"error\": \"missing_field\" }",primary_full:"{ \"error\": \"missing_field\" }"},
+  258: {detailA_mixed:"文章生成",detailA_full:"文章生成",detailB_mixed:"独立Evaluatorが評価",detailB_full:"独立エバリュエーターが評価"},
+  259: {itemA_mixed:"要約",itemA_full:"要約",itemB_mixed:"カテゴリ分類",itemB_full:"カテゴリ分類",itemC_mixed:"優先度判定",itemC_full:"優先度判定"},
+  260: {detailA_mixed:"恒常的なRole設定",detailA_full:"恒常的な役割設定",detailB_mixed:"Task限定Few-shot例",detailB_full:"タスク限定少数事例"},
+  261: {detailA_mixed:"要約生成",detailA_full:"要約生成",detailB_mixed:"原文Referenceと照合",detailB_full:"原文リファレンスと照合"},
+  262: {primary_mixed:"<conclusion>...</conclusion>",primary_full:"<conclusion>...</conclusion>"},
+  263: {primary_mixed:"{ \"amount\": 1000 }",primary_full:"{ \"amount\": 1000 }"},
+  264: {detailA_mixed:"社内文書Tone調整",detailA_full:"社内文書トーン調整",detailB_mixed:"固定Rubricで評価",detailB_full:"固定ルーブリックで評価"},
+  265: {detailA_mixed:"テナント固有Brand Voice",detailA_full:"テナント固有ブランドボイス",detailB_mixed:"Userの発言内容",detailB_full:"ユーザーの発言内容"},
+  266: {detailA_mixed:"応答Log生成",detailA_full:"応答ログ生成",detailB_mixed:"Sample抽出しScoring",detailB_full:"サンプル抽出しスコアリング"},
+  267: {primary_mixed:"社内業務App",primary_full:"社内業務アプリ"},
+  268: {primary_mixed:"process_data",primary_full:"process_data"},
+  269: {primary_mixed:"MCP Client App",primary_full:"MCPクライアントアプリ"},
+  270: {primary_mixed:"Notion Page削除",primary_full:"Notionページ削除"},
+  271: {primary_mixed:"search_records",primary_full:"search_records"},
+  272: {primary_mixed:"call_external_api",primary_full:"call_external_api"},
+  273: {primary_mixed:"社内統合Client",primary_full:"社内統合クライアント"},
+  274: {primary_mixed:"{ \"page\": 1, \"limit\": 50 }",primary_full:"{ \"page\": 1, \"limit\": 50 }"},
+  275: {primary_mixed:"do_everything_tool",primary_full:"do_everything_tool"},
+  276: {primary_mixed:"Filesystem全体読み書き",primary_full:"ファイルシステム全体読み書き"},
+  277: {primary_mixed:"Remote共有Client",primary_full:"リモート共有クライアント"},
+  278: {primary_mixed:"注文確定API",primary_full:"注文確定API"},
+  279: {primary_mixed:"マルチテナントClient",primary_full:"マルチテナントクライアント"},
+  280: {primary_mixed:"金額処理Tool",primary_full:"金額処理ツール"},
+  281: {primary_mixed:"定型指示利用Client",primary_full:"定型指示利用クライアント"},
+  282: {primary_mixed:"顧客へのEmail送信",primary_full:"顧客へのメール送信"},
+  283: {primary_mixed:"{ \"start_date\": \"2024-01-01\", \"end_date\": \"2024-01-31\" }",primary_full:"{ \"start_date\": \"2024-01-01\", \"end_date\": \"2024-01-31\" }"},
+  284: {primary_mixed:"在庫確認API",primary_full:"在庫確認API"},
+  285: {primary_mixed:"重要な文脈情報",primary_full:"重要な文脈情報"},
+  286: {primary_mixed:"CLAUDE.md+Tool定義",primary_full:"CLAUDE.mdとツール定義"},
+  287: {primary_mixed:"未解決Errorと保留中の意思決定",primary_full:"未解決エラーと保留中の意思決定"},
+  288: {primary_mixed:"外部API",primary_full:"外部API"},
+  289: {itemA_mixed:"探索Subagent",itemA_full:"探索サブエージェント",itemB_mixed:"要約Report担当",itemB_full:"要約レポート担当"},
+  290: {detailA_mixed:"RAG回答生成",detailA_full:"RAG回答生成",detailB_mixed:"根拠Documentと照合",detailB_full:"根拠ドキュメントと照合"},
+  291: {primary_mixed:"決済API",primary_full:"決済API"},
+  292: {primary_mixed:"関連性の高い情報のみ",primary_full:"関連性の高い情報のみ"},
+  293: {primary_mixed:"User固有の背景知識",primary_full:"ユーザー固有の背景知識"},
+  294: {primary_mixed:"外部依存Service",primary_full:"外部依存サービス"},
+  295: {primary_mixed:"検討済みEdge caseの結論",primary_full:"検討済みエッジケースの結論"},
+  296: {primary_mixed:"System Prompt固定部分",primary_full:"システムプロンプト固定部分"},
+  297: {detailA_mixed:"Agent出力生成",detailA_full:"エージェント出力生成",detailB_mixed:"Baselineと比較評価",detailB_full:"ベースラインと比較評価"},
+  298: {primary_mixed:"Toolの生出力要点",primary_full:"ツールの生出力要点"},
+  299: {primary_mixed:"外部Service",primary_full:"外部サービス"}
+};
+
 const DIAGRAM_BUILDERS = {
-  orchestrator_worker: () => {
-    let s = svgBox(240, 10, 160, 36, L("Orchestrator\n（Taskを分解）", "オーケストレーター\n（タスク分解）"));
-    const workers = [L("Worker1", "ワーカー1"), L("Worker2", "ワーカー2"), L("Worker3", "ワーカー3")];
+  orchestrator_worker: (lb = {}) => {
+    let s = svgBox(240, 10, 160, 36, lb.primary || L("Orchestrator\n（Taskを分解）", "オーケストレーター\n（タスク分解）"));
+    const workers = [
+      lb.itemA || L("Worker1", "ワーカー1"),
+      lb.itemB || L("Worker2", "ワーカー2"),
+      lb.itemC || L("Worker3", "ワーカー3")
+    ];
     const xs = [60, 250, 440];
     xs.forEach((x, i) => { s += svgBox(x, 80, 140, 36, workers[i]); s += svgArrow(320, 46, x + 70, 80); });
     s += svgBox(220, 138, 200, 28, L("結果を統合", "結果を統合"), true);
     xs.forEach(x => { s += svgArrow(x + 70, 116, 320, 138); });
     return s;
   },
-  react_loop: () => {
+  react_loop: (lb = {}) => {
     let s = svgBox(40, 65, 140, 40, L("思考\n(Reasoning)", "思考\n(Reasoning)"));
-    s += svgBox(250, 65, 140, 40, L("行動\n(Acting / Tool実行)", "行動\n(Acting / ツール実行)"));
-    s += svgBox(460, 65, 140, 40, L("観察\n(Observation)", "観察\n(Observation)"));
+    s += svgBox(250, 65, 140, 40, lb.detailA ? `行動\n(${lb.detailA})` : L("行動\n(Acting / Tool実行)", "行動\n(Acting / ツール実行)"));
+    s += svgBox(460, 65, 140, 40, lb.detailB ? `観察\n(${lb.detailB})` : L("観察\n(Observation)", "観察\n(Observation)"));
     s += svgArrow(180, 85, 250, 85);
     s += svgArrow(390, 85, 460, 85);
     s += svgCurveBack(530, 105, 110, 105, 530, 150, 110, 150);
     s += svgLabel(320, 148, L("目標達成まで繰り返す", "目標達成まで繰り返す"));
     return s;
   },
-  prompt_chaining: () => {
-    const steps = [L("Step1", "ステップ1"), L("Step2", "ステップ2"), L("Step3", "ステップ3"), L("完了", "完了")];
+  prompt_chaining: (lb = {}) => {
+    const steps = [
+      lb.itemA || L("Step1", "ステップ1"),
+      lb.itemB || L("Step2", "ステップ2"),
+      lb.itemC || L("Step3", "ステップ3"),
+      L("完了", "完了")
+    ];
     let s = '', x = 20, w = 130;
     steps.forEach((label, i) => {
       s += svgBox(x, 70, w, 40, label, i === steps.length - 1);
@@ -1253,18 +1569,22 @@ const DIAGRAM_BUILDERS = {
     });
     return s;
   },
-  routing: () => {
-    let s = svgBox(30, 65, 120, 40, L("入力", "入力"));
+  routing: (lb = {}) => {
+    let s = svgBox(30, 65, 120, 40, lb.inputLabel || L("入力", "入力"));
     s += svgDiamond(260, 85, 140, 70, L("分類", "分類"));
-    const targets = [L("専用Prompt A", "専用プロンプトA"), L("専用Prompt B", "専用プロンプトB"), L("専用Prompt C", "専用プロンプトC")];
+    const targets = [
+      lb.itemA || L("専用Prompt A", "専用プロンプトA"),
+      lb.itemB || L("専用Prompt B", "専用プロンプトB"),
+      lb.itemC || L("専用Prompt C", "専用プロンプトC")
+    ];
     const ys = [10, 85, 150];
     s += svgArrow(150, 85, 190, 85);
     targets.forEach((t, i) => { s += svgBox(440, ys[i], 170, 32, t); s += svgArrow(330, 85, 440, ys[i] + 16); });
     return s;
   },
-  evaluator_optimizer: () => {
-    let s = svgBox(30, 65, 140, 40, L("生成\n(Generator)", "生成\n(Generator)"));
-    s += svgBox(240, 65, 140, 40, L("評価\n(Evaluator)", "評価\n(Evaluator)"));
+  evaluator_optimizer: (lb = {}) => {
+    let s = svgBox(30, 65, 140, 40, lb.detailA ? `生成\n(${lb.detailA})` : L("生成\n(Generator)", "生成\n(Generator)"));
+    s += svgBox(240, 65, 140, 40, lb.detailB ? `評価\n(${lb.detailB})` : L("評価\n(Evaluator)", "評価\n(Evaluator)"));
     s += svgDiamond(500, 85, 130, 70, L("基準達成?", "基準達成?"));
     s += svgArrow(170, 85, 240, 85);
     s += svgArrow(380, 85, 435, 85);
@@ -1273,17 +1593,21 @@ const DIAGRAM_BUILDERS = {
     s += svgCurveBack(500, 50, 100, 50, 500, 15, 100, 15, L("No（再生成）", "No（再生成）"));
     return s;
   },
-  parallelization: () => {
-    let s = svgBox(20, 65, 110, 40, L("入力Task", "入力タスク"));
-    const boxes = [L("SubtaskA", "サブタスクA"), L("SubtaskB", "サブタスクB"), L("SubtaskC", "サブタスクC")];
+  parallelization: (lb = {}) => {
+    let s = svgBox(20, 65, 110, 40, lb.inputLabel || L("入力Task", "入力タスク"));
+    const boxes = [
+      lb.itemA || L("SubtaskA", "サブタスクA"),
+      lb.itemB || L("SubtaskB", "サブタスクB"),
+      lb.itemC || L("SubtaskC", "サブタスクC")
+    ];
     const ys = [5, 65, 125];
     boxes.forEach((b, i) => { s += svgBox(220, ys[i], 150, 32, b); s += svgArrow(130, 85, 220, ys[i] + 16); });
     s += svgBox(470, 65, 150, 40, L("結果を統合", "結果を統合"), true);
     ys.forEach(y => { s += svgArrow(370, y + 16, 470, 85); });
     return s;
   },
-  human_in_the_loop: () => {
-    let s = svgBox(20, 65, 170, 40, L("Agentの提案", "エージェントの提案"));
+  human_in_the_loop: (lb = {}) => {
+    let s = svgBox(20, 65, 170, 40, lb.primary ? `${L("Agentの提案", "エージェントの提案")}\n(${lb.primary})` : L("Agentの提案", "エージェントの提案"));
     s += svgDiamond(320, 85, 150, 70, L("人間が承認？", "人間が承認？"));
     s += svgBox(500, 20, 130, 36, L("実行", "実行"), true);
     s += svgBox(500, 115, 130, 36, L("却下・修正依頼", "却下・修正依頼"));
@@ -1292,11 +1616,11 @@ const DIAGRAM_BUILDERS = {
     s += svgArrow(395, 110, 500, 133, "No");
     return s;
   },
-  subagent_isolation: () => {
+  subagent_isolation: (lb = {}) => {
     let s = svgBox(220, 8, 200, 36, L("親Agent（会話Context）", "親エージェント（会話コンテキスト）"));
     const subs = [
-      L("SubagentA\n（独立Context）", "サブエージェントA\n（独立コンテキスト）"),
-      L("SubagentB\n（独立Context）", "サブエージェントB\n（独立コンテキスト）")
+      lb.itemA ? `${lb.itemA}\n${L("（独立Context）", "（独立コンテキスト）")}` : L("SubagentA\n（独立Context）", "サブエージェントA\n（独立コンテキスト）"),
+      lb.itemB ? `${lb.itemB}\n${L("（独立Context）", "（独立コンテキスト）")}` : L("SubagentB\n（独立Context）", "サブエージェントB\n（独立コンテキスト）")
     ];
     const xs = [60, 380];
     subs.forEach((label, i) => {
@@ -1306,8 +1630,8 @@ const DIAGRAM_BUILDERS = {
     s += svgLabel(320, 78, L("要約のみ返却しContextを保護", "要約のみ返却しコンテキストを保護"));
     return s;
   },
-  mcp_architecture: () => {
-    let s = svgBox(20, 65, 180, 45, L("MCP Client\n(LLM Application)", "MCPクライアント\n(LLMアプリケーション)"));
+  mcp_architecture: (lb = {}) => {
+    let s = svgBox(20, 65, 180, 45, lb.primary ? `${L("MCP Client", "MCPクライアント")}\n(${lb.primary})` : L("MCP Client\n(LLM Application)", "MCPクライアント\n(LLMアプリケーション)"));
     s += `<rect x="430" y="20" width="190" height="130" rx="10" fill="#F5F5F5" stroke="#999" stroke-width="1.5"/>`;
     s += `<text x="525" y="35" text-anchor="middle" font-size="11" fill="#222">${esc(L("MCP Server", "MCPサーバー"))}</text>`;
     s += svgBox(450, 40, 150, 28, "Tools");
@@ -1317,49 +1641,49 @@ const DIAGRAM_BUILDERS = {
     s += svgArrow(430, 100, 200, 100, L("結果", "結果"));
     return s;
   },
-  tool_call_flow: () => {
+  tool_call_flow: (lb = {}) => {
     let s = svgBox(40, 30, 160, 40, L("Model", "モデル"));
-    s += svgBox(420, 30, 160, 40, L("Tool", "ツール"));
+    s += svgBox(420, 30, 160, 40, lb.primary || L("Tool", "ツール"));
     s += svgArrow(200, 45, 420, 45, L("① 呼び出し（引数）", "① 呼び出し（引数）"));
     s += svgArrow(420, 70, 200, 70, L("② 結果 / Errorを返す", "② 結果 / エラーを返す"));
     s += svgBox(40, 110, 540, 40, L("③ Modelが結果を検証し、次のActionを決定", "③ モデルが結果を検証し、次のアクションを決定"), true);
     return s;
   },
-  context_compaction: () => {
+  context_compaction: (lb = {}) => {
     let s = '';
     for (let i = 0; i < 6; i++) s += svgBox(10 + i * 55, 60, 45, 40, "msg" + (i + 1));
     s += svgArrow(340, 80, 400, 80, L("圧縮", "圧縮"));
-    s += svgBox(410, 55, 210, 50, L("要約\n（重要情報のみ保持）", "要約\n（重要情報のみ保持）"), true);
+    s += svgBox(410, 55, 210, 50, lb.primary ? `要約\n（${lb.primary}）` : L("要約\n（重要情報のみ保持）", "要約\n（重要情報のみ保持）"), true);
     return s;
   },
-  prompt_caching: () => {
+  prompt_caching: (lb = {}) => {
     let s = svgLabel(100, 25, L("1回目Request", "1回目リクエスト"));
-    s += svgBox(20, 40, 300, 30, L("System Prompt全体を処理（遅い）", "システムプロンプト全体を処理（遅い）"));
+    s += svgBox(20, 40, 300, 30, lb.primary ? `${lb.primary}を処理（遅い）` : L("System Prompt全体を処理（遅い）", "システムプロンプト全体を処理（遅い）"));
     s += svgLabel(100, 100, L("2回目Request", "2回目リクエスト"));
     s += svgBox(20, 115, 220, 30, L("Cache済み（高速）", "キャッシュ済み（高速）"), true);
     s += svgBox(245, 115, 75, 30, L("新規部分", "新規部分"));
     return s;
   },
-  system_vs_user_prompt: () => {
-    let s = svgBox(30, 15, 260, 40, L("System Prompt\n（役割・振る舞いのルール）", "システムプロンプト\n（役割・振る舞いのルール）"));
-    s += svgBox(30, 70, 260, 40, L("User Prompt\n（個別のRequest）", "ユーザープロンプト\n（個別のリクエスト）"));
+  system_vs_user_prompt: (lb = {}) => {
+    let s = svgBox(30, 15, 260, 40, lb.detailA ? `${L("System Prompt", "システムプロンプト")}\n（${lb.detailA}）` : L("System Prompt\n（役割・振る舞いのルール）", "システムプロンプト\n（役割・振る舞いのルール）"));
+    s += svgBox(30, 70, 260, 40, lb.detailB ? `${L("User Prompt", "ユーザープロンプト")}\n（${lb.detailB}）` : L("User Prompt\n（個別のRequest）", "ユーザープロンプト\n（個別のリクエスト）"));
     s += svgBox(450, 42, 150, 40, L("Model", "モデル"));
     s += svgArrow(290, 35, 450, 55);
     s += svgArrow(290, 90, 450, 70);
     return s;
   },
-  structured_output_schema: () => {
+  structured_output_schema: (lb = {}) => {
     let s = svgBox(20, 60, 220, 50, L("指示 + JSON Schema\n（型・必須項目を明示）", "指示 + JSONスキーマ\n（型・必須項目を明示）"));
     s += svgBox(280, 60, 120, 50, L("Model", "モデル"));
-    s += svgBox(440, 40, 180, 30, '{ "key": "value" }', true);
+    s += svgBox(440, 40, 180, 30, lb.primary || '{ "key": "value" }', true);
     s += svgBox(440, 90, 180, 30, L("余分な自由文は含めない", "余分な自由文は含めない"));
     s += svgArrow(240, 85, 280, 85);
     s += svgArrow(400, 70, 440, 55);
     s += svgArrow(400, 95, 440, 105);
     return s;
   },
-  permission_hooks: () => {
-    let s = svgBox(20, 65, 180, 40, L("危険な操作の要求\n（rm -rf など）", "危険な操作の要求\n（rm -rf など）"));
+  permission_hooks: (lb = {}) => {
+    let s = svgBox(20, 65, 180, 40, lb.primary ? `${L("危険な操作の要求", "危険な操作の要求")}\n（${lb.primary}）` : L("危険な操作の要求\n（rm -rf など）", "危険な操作の要求\n（rm -rf など）"));
     s += svgDiamond(340, 85, 150, 70, L("権限Check", "権限チェック"));
     s += svgBox(520, 20, 110, 36, L("実行", "実行"), true);
     s += svgBox(520, 115, 110, 36, L("Block\n/ 確認を要求", "ブロック\n/ 確認を要求"));
@@ -1368,8 +1692,8 @@ const DIAGRAM_BUILDERS = {
     s += svgArrow(410, 110, 520, 133, L("拒否", "拒否"));
     return s;
   },
-  retry_timeout: () => {
-    let s = svgBox(30, 65, 160, 40, L("Tool呼び出し", "ツール呼び出し"));
+  retry_timeout: (lb = {}) => {
+    let s = svgBox(30, 65, 160, 40, lb.primary ? `${lb.primary}${L("呼び出し", "呼び出し")}` : L("Tool呼び出し", "ツール呼び出し"));
     s += svgDiamond(320, 85, 140, 70, L("成功？", "成功？"));
     s += svgBox(500, 65, 120, 40, L("結果を返す", "結果を返す"), true);
     s += svgArrow(190, 85, 250, 85);
@@ -1378,21 +1702,22 @@ const DIAGRAM_BUILDERS = {
     s += svgLabel(270, 15, L("No（上限回数までRetry / Timeout）", "No（上限回数までリトライ / タイムアウト）"));
     return s;
   },
-  claude_code_config: () => {
+  claude_code_config: (lb = {}) => {
     let s = svgBox(250, 65, 140, 40, "Claude Code", true);
     const items = ["CLAUDE.md", "hooks", L("Subagent", "サブエージェント"), ".mcp.json", L("Slash Command", "スラッシュコマンド")];
     const pos = [[10,5],[150,5],[320,5],[480,5],[230,130]];
+    const hi = Number.isInteger(lb.highlightIndex) ? lb.highlightIndex : -1;
     items.forEach((label, i) => {
-      s += svgBox(pos[i][0], pos[i][1], 130, 32, label);
+      s += svgBox(pos[i][0], pos[i][1], 130, 32, label, i === hi);
       const bx = pos[i][0] + 65;
       const by = pos[i][1] < 65 ? pos[i][1] + 32 : pos[i][1];
       s += svgArrow(bx, by, 320, by < 65 ? 65 : 105);
     });
     return s;
   },
-  llm_as_judge: () => {
-    let s = svgBox(30, 65, 140, 40, L("生成\n(LLM)", "生成\n(LLM)"));
-    s += svgBox(240, 65, 140, 40, L("評価\n(判定LLM)", "評価\n(判定LLM)"));
+  llm_as_judge: (lb = {}) => {
+    let s = svgBox(30, 65, 140, 40, lb.detailA ? `生成\n(${lb.detailA})` : L("生成\n(LLM)", "生成\n(LLM)"));
+    s += svgBox(240, 65, 140, 40, lb.detailB ? `評価\n(${lb.detailB})` : L("評価\n(判定LLM)", "評価\n(判定LLM)"));
     s += svgDiamond(500, 85, 130, 70, L("合格？", "合格？"));
     s += svgArrow(170, 85, 240, 85);
     s += svgArrow(380, 85, 435, 85);
@@ -1472,15 +1797,31 @@ function diagramCaptions() {
   return CONTENT_MODE === 'ja_only' ? DIAGRAM_CAPTIONS_FULL : DIAGRAM_CAPTIONS;
 }
 
-function renderDiagram(diagramId) {
+// 問題ごとの図解カスタムラベル（QUESTIONS_JAの元インデックスをキーとする）。
+// 各diagram_idが使うSlotキーはDIAGRAM_SLOT_MAPを参照。値が無い/空のSlotは各ビルダーの既定文言にフォールバックする。
+function diagramLabelsFor(idx) {
+  const entry = QUESTION_DIAGRAM_LABELS[idx];
+  if (!entry) return {};
+  const mixed = CONTENT_MODE !== 'ja_only';
+  const out = {};
+  ['primary', 'itemA', 'itemB', 'itemC', 'detailA', 'detailB', 'inputLabel'].forEach(base => {
+    const v = mixed ? entry[base + '_mixed'] : entry[base + '_full'];
+    if (v) out[base] = v;
+  });
+  if (entry.highlightIndex !== undefined) out.highlightIndex = entry.highlightIndex;
+  return out;
+}
+
+function renderDiagram(diagramId, idx) {
   const builder = DIAGRAM_BUILDERS[diagramId];
   const box = document.getElementById('diagramBox');
   if (!builder) { box.innerHTML = ''; box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
   const caption = diagramCaptions()[diagramId] || '';
+  const labels = diagramLabelsFor(idx);
   box.innerHTML = `<svg viewBox="0 0 640 170" width="100%" style="min-width:520px; display:block;">
     <defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#555"/></marker></defs>
-    ${builder()}
+    ${builder(labels)}
   </svg>
   <div style="padding:8px 12px; font-size:0.85em; color:#555; border-top:1px solid #eee; background:#fafbff;">🖼 ${esc(caption)}</div>`;
 }
@@ -1875,7 +2216,7 @@ function updateDiagramVisibility() {
   if (answered || hintShown) {
     hintBtn.classList.add('hidden');
     if (hasDiagram) {
-      renderDiagram(qJA.diagram);
+      renderDiagram(qJA.diagram, activeIdx());
     } else {
       diagramBoxEl.classList.add('hidden');
       diagramBoxEl.innerHTML = '';
